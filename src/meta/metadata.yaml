@@ -1,0 +1,23 @@
+---
+# Used by Pandoc to print covers:
+title: Essential Scala: Doodle Case Study
+author: "Noel Welsh and Dave Gurnell"
+date: "Pre-release Version, August 2015"
+# Used by Pandoc to generate the PDF cover...
+# see src/css/book.css for HTML/ePub covers:
+coverColor: "E8515B"
+# Used by Grunt to name output files:
+filenameStem: "essential-scala-doodle-case-study"
+# Used by Grunt to create a ZIP of source code:
+exercisesRepo: null # "git@github.com:underscoreio/essential-scala-code.git"
+# Used by Grunt to assemble pandoc command line:
+pages:
+  - src/pages/index.md
+
+  - src/pages/foundation/index.md
+  - src/pages/foundation/background.md
+  - src/pages/foundation/properties.md
+  - src/pages/foundation/atoms.md
+
+  - src/pages/links.md
+...
