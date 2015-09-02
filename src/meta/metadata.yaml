@@ -1,6 +1,6 @@
 ---
 # Used by Pandoc to print covers:
-title: Essential Scala: Doodle Case Study
+title: "Essential Scala: Doodle Case Study"
 author: "Noel Welsh and Dave Gurnell"
 date: "Pre-release Version, August 2015"
 # Used by Pandoc to generate the PDF cover...
@@ -19,5 +19,8 @@ pages:
   - src/pages/foundation/properties.md
   - src/pages/foundation/atoms.md
 
+  - src/pages/animation/index.md
+
   - src/pages/links.md
+  - src/pages/solutions.md
 ...
