@@ -20,7 +20,7 @@ pages:
   - src/pages/foundation/atoms.md
 
   - src/pages/animation/index.md
-  - src/pages/animation/notes.txt
+  - src/pages/animation/notes.md
   - src/pages/animation/easing.md
 
   - src/pages/typeclasses/typeclasses.md

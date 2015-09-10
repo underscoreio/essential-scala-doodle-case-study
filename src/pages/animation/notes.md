@@ -2,7 +2,7 @@
 
 In our meeting we agreed on the following interface:
 
-```
+```scala
 trait EventStream[A] {
   def map[B](f: A => B): EventStream[B]
 
@@ -67,21 +67,6 @@ How can be clean up nodes that are no longer needed, so we don't leak memory?
 
 `flatMap` is notably absent from our `EventStream` API. What would is mean to add `flatMap`? 
 
-flatMap(fa: EventStream[A])(f: A => EventStream[B]): EventStream[B]
-
-What could f be?
-
-(in: Int) =>
-in match {
-  case 0 => EventStream.circles.foldp... // EventStream[Image]
-  case 0 => EventStream.stars.foldp...
-  case _ => EventStream.new(missle).map(f(in)) //EventStream.unicorns
-}
-
-anEventStream.flatMap(someFunction).foldp(zero)(+)
-
-join(m: EventStream[EventStream[A]]): EventStream[A]
-
 #### Evaluation Semantics
 
 We briefly pondered the difference between depth- and breadth-first evaluation above. What about concurrency? The reactive model is a natural fit for concurrent processing. Can we extend it to support concurrency? How should we do this? While we're thinking about concurrency, are there race conditions in the existing implementation?
@@ -95,5 +80,4 @@ val y = a map (_-1) foldp(0)(_+_) // -1 -2 -3 ...
 val z = (x zip y) map (case (x, y) => x + y) // 0 0 0 ... ?
 ~~~
 
-Should nodes start processing events as soon as they are created, or should they wait for some signal to start? What difference does it make?
-
+Should nodes start processing events as soon as they are created, or should they wait for some signal to start? What difference does it make? 
