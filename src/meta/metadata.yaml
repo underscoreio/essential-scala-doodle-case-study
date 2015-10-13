@@ -18,6 +18,7 @@ pages:
   - src/pages/foundation/background.md
   - src/pages/foundation/properties.md
   - src/pages/foundation/atoms.md
+  - src/pages/foundation/implementation.md
 
   - src/pages/animation/index.md
   - src/pages/animation/notes.md
