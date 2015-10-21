@@ -291,4 +291,87 @@ final case class Beside(left: Image, right: Image) extends Image
 ```
 </div>
 
-Now we have enough information to do layout. To be continued...
+Now we have enough information to do layout. Our `Image` is a tree. The top level boudning box tells us how big the entire image is. We can decide the origin of this bounding box is the origin of the global canvas coordinate system. Then we can walk down the tree (yet more structural recursion) translating the local coordinate system into the global system. When we reach a leaf node (so, a primite image), we can actually draw it. We already have the skeleton for this in `draw`---we just need to pass along the mapping from the local coordinate system to the global one. We can use a method like
+
+```scala
+def draw(canvas: Canvas, originX: Double, originY: Double): Unit =
+   ???
+```
+
+which we call from the standard `draw` with the origin coordinates initially set to zero.
+
+Now implement this variant of `draw`.
+
+<div class="solution">
+Below is the complete code.
+
+```scala
+package doodle
+package core
+
+import doodle.backend.Canvas
+
+sealed trait Image {
+  val boundingBox: BoundingBox =
+    this match {
+      case Circle(r) =>
+        BoundingBox(-r, r, r, -r)
+      case Rectangle(w, h) =>
+        BoundingBox(-w/2, h/2, w/2, -h/2)
+      case Above(a, b) =>
+        a.boundingBox above b.boundingBox
+      case On(o, u) =>
+        o.boundingBox on u.boundingBox
+      case Beside(l, r) =>
+        l.boundingBox beside r.boundingBox
+    }
+
+  def on(that: Image): Image =
+    On(this, that)
+
+  def beside(that: Image): Image =
+    Beside(this, that)
+
+  def above(that: Image): Image =
+    Above(this, that)
+
+  def draw(canvas: Canvas): Unit =
+    draw(canvas, 0.0, 0.0)
+
+  def draw(canvas: Canvas, originX: Double, originY: Double): Unit =
+    this match {
+      case Circle(r) =>
+        canvas.circle(0.0, 0.0, r)
+      case Rectangle(w,h) =>
+        canvas.rectangle(-w/2, h/2, w/2, -h/2)
+      case Above(a, b) =>
+        val box  = this.boundingBox
+        val aBox = a.boundingBox
+        val bBox = b.boundingBox
+
+        val aboveOriginY = originY + box.top - (aBox.height / 2)
+        val belowOriginY = originY + box.bottom + (bBox.height / 2)
+
+        a.draw(canvas, originX, aboveOriginY)
+        b.draw(canvas, originX, belowOriginY)
+      case On(o, u) =>
+        o.draw(canvas, originX, originY)
+        u.draw(canvas, originX, originY)
+      case Beside(l, r) =>
+        val box  = this.boundingBox
+        val lBox = l.boundingBox
+        val rBox = r.boundingBox
+
+        val leftOriginX = originX + box.left  + (lBox.width / 2)
+        val rightOriginX = originX + box.right - (rBox.width / 2)
+        l.draw(canvas, leftOriginX, originY)
+        r.draw(canvas, rightOriginX, originY)
+    }
+}
+final case class Circle(radius: Double) extends Image
+final case class Rectangle(width: Double, height:  Double) extends Image
+final case class Above(above: Image, below: Image) extends Image
+final case class On(on: Image, under: Image) extends Image
+final case class Beside(left: Image, right: Image) extends Image
+```
+</div>
