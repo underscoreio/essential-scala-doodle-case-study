@@ -21,7 +21,10 @@ pages:
   - src/pages/foundation/implementation.md
 
   - src/pages/animation/index.md
-  - src/pages/animation/notes.md
+  - src/pages/animation/background.md
+  - src/pages/animation/example.md
+  - src/pages/animation/interface.md
+  - src/pages/animation/implementation.md
   - src/pages/animation/easing.md
 
   - src/pages/typeclasses/typeclasses.md
