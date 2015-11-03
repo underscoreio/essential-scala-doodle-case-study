@@ -4,25 +4,29 @@ The typical imperative approach is animation is to setup a callback that is call
 
 This has the all problems of imperative approach to drawing that we abandoned in the last chapter: it doesn't compose, is difficult to work with, and is difficult to reason about. What would be a better, functional, approach be?
 
-When we look at a what an animation is, we find it quite amenable to a functional approach. Imagine we are animating a ball moving about the screen. The current position of the ball is a function of the previous postion and the current velocity. The current velocity is itself a function of the user input and the previous velocity. Let's quickly sketch out some code to make this really concrete.
+When we look at a what an animation is, we find it quite amenable to a functional approach. Imagine we are animating a ball moving about the screen. The current position of the ball is a function of the previous postion and the current velocity.
+
+![Current position is equal to the previous position plus the current velocity.](src/pages/animation/current-position.png)
+
+The current velocity is itself a function of the user input and the previous velocity. Let's quickly sketch out some code to make this really concrete.
 
 
 We start with a type to represent user input.
 
 ```scala
-// User input is a KeyPress
-sealed trait KeyPress
-final case class Up extends KeyPress
-final case class Down extends KeyPress
-final case class Left extends KeyPress
-final case class Right extends KeyPress
+// User input is a Key
+sealed trait Key
+final case object Up extends Key
+final case object Down extends Key
+final case object Left extends Key
+final case object Right extends Key
 ```
 
 Now we can calculate velocity as a function of the velocity at the previous timestep and user input.
 
 ```scala
 // Velocity is represented as a two dimensional Vector
-def currentVelocity(input: KeyPress, previousVelocity: Vec): Vec =
+def currentVelocity(previousVelocity: Vec, input: Key): Vec =
   input match {
     case Up => previousVelocity + Vec(0, 1)
     case Down => previousVelocity + Vec(0, -1)
@@ -35,11 +39,11 @@ Location is a function of the location at the previous time step and the velocit
 
 ```scala
 // Location is represented as a two dimensional Vector, by abuse of notation
-def currentLocation(velocity: Vec, previousLocation: Vec): Vec =
+def currentLocation(previousLocation: Vec, velocity: Vec): Vec =
   previousLocation + velocity
 ```
 
-Given the current location we can draw at that location. (You might not have implemented the `at` method in your version of Doodle. It places an `Image` at the given coordinates in the local coordinate system of the enclosing `Image`, or in the global coordinate system if there is no enclosing `Image`.)
+Given the current location we can draw a ball at that location. (You might not have implemented the `at` method in your version of Doodle. It places an `Image` at the given coordinates in the local coordinate system of the enclosing `Image`, or in the global coordinate system if there is no enclosing `Image`.)
 
 ```scala
 // A simple image of a ball
@@ -51,19 +55,37 @@ def currentBall(currentLocation: Vec): Image =
 
 This is a good example of functional code: we've broken the problem down into small independent functions that we then compose to build the complete solution. We're still missing some parts though: how is user input obtained for example?
 
-If we ignore interactivity for now, we can actually run the code above using `Lists` to provide the input. We fold `currentVelocity` and `currentLocation`, and map `currentBall`.
+If we ignore interactivity for now, we can actually run the code above using `Lists` to provide the input. We `scanLeft` `currentVelocity` and `currentLocation`, and `map` `currentBall`.
+
+You might not have seen the `scan` methods before. They are equivalent to fold but they collect the intermediate results in a list. Taking summing the elements of a `List` using fold like so:
 
 ```scala
-val input = List(Up, Down, Up, Down, Left, Right)
+List(1, 2, 3, 4).foldLeft(0){ _ + _ }
+// res: Int = 10
+```
+
+If we replace `foldLeft` with `scanLeft` we get a list of the partial sums.
+
+```scala
+List(1, 2, 3, 4).scanLeft(0){ _ + _ }
+// res: List[Int] = List(0, 1, 3, 6, 10)
+```
+
+We can apply this to our `Image` example to get a list of intermediate image frames.
+
+```scala
+val input = List(Up, Up, Down, Down, Left, Right, Left, Right)
 
 val images: List[Image] =
-  input.foldRight(Vec(0, 0)){ currentVelocity }
-    .foldRight(Vec(0, 0)){ currentLocation }
-    .map(currentBall)
+  input.scanLeft(Vec(0, 0)){ currentVelocity }.
+    scanLeft(Vec(0, 0)){ currentLocation }.
+    map(currentBall)
 ```
 
 Our resulting list of images is something that we could display to make an animation.
 
-Missing so far is any notion of time. The values of a `List` are all known in advance, while user input only becomes available when keys are pressed. What we want is some kind of sequence of data where the elements were generated by external input. Imagine, for example, something like a list of keypresses where the next element springs into existence when the user presses a key. We've seen above that the basic interface of `map` and `fold` allows us to express at least some animations.
+Missing so far is any notion of time. The values of a `List` are all known in advance, while user input only becomes available when keys are pressed. What we want is some kind of sequence of data where the elements were generated by external input. Imagine, for example, something like a list of keypresses where the next element springs into existence when the user presses a key. We've seen above that the basic interface of `map` and `scanLeft` allows us to express at least some animations.
 
-The next leap is to realise that it's the interface allowing transformation (`map`, `fold`, and so on) that is important, not the list-like nature. We don't want to actually store all the past inputs like we would in a list, for example. We can imagine our transformations as nodes in a directed acyclic graph. Values flow into the graph from user input and so on, and are transformed to, presumably, `Images`.
+The next leap is to realise that it's the interface allowing transformation (`map`, `scanLeft`, and so on) that is important, not the list-like nature. We don't want to actually store all the past inputs like we would in a list, for example. We can imagine our transformations as nodes in a directed acyclic graph. Values flow into the graph from user input and so on, and are transformed to, presumably, `Images`.
+
+In summary, what we want to build is an abstraction like `List` that represents data changing *over time*. We can think of a list as representing data that changes over space. Indexing into a list accesses the data at different locations in the computer's memory. Our new event stream abstraction will represent data changing over time. Indexing into such a stream accesses data at different time points. We aren't actually going to implement indexing, as this would mean allowing time travel, but it serves as a useful conceptual model. 
