@@ -55,7 +55,7 @@ final case class Map[A,B](f: A => B) extends Observer[A] with EventStream[B]
 
 Now we can say every `EventStream[A]` has a collection of observers of type `Observer[A]`. It doesn't really matter what collection type we use, but we'll have to be able to update it---so it either needs to be a mutable collection or stored in a `var`. Implement this.
 
-<div class="collection">
+<div class="solution">
 I've chosen to use a mutable `ListBuffer`, but you could equally use a `List` stored in a `var`.
 
 ```scala
@@ -76,9 +76,9 @@ final case class Map[A,B](f: A => B) extends EventStream[B]
 ```
 </div>
 
-Now when we `map` over an event stream we need to add a new observer. Implement this.
+When we `map` over an event stream we need to add a new observer to the `EventStream`. Implement this.
 
-<div class="collection">
+<div class="solution">
 ```scala
 sealed trait Observer[A] {
   def observe(in: A): Unit =
@@ -103,7 +103,7 @@ final case class Map[A,B](f: A => B) extends Observer[A] with EventStream[B]
 This is the basic implementation pattern we will use for the rest of the methods. Before we implement the rest of the API let's get `observe` working. What are we going to do in `observe`? Our only concrete implementation is `Map`. In `Map` we want to transform the input using the function `f` and then push that output to all observers. We might (rightly) worry about the order in which we push the output, but for now we'll ignore that question---any order will do.
 
 <div class="solution">
-We can implement `observe` using structural recursion.
+We can implement `observe` using structural recursion. At this point we're not worried about the order in which we update the observers, so I've chosen left-to-right traversal. Since each call to `observe` will recursively result in another update, this choice also gives us depth-first traversal of the graph.
 
 ```scala
 sealed trait Observer[A] {
@@ -132,7 +132,7 @@ final case class Map[A,B](f: A => B) extends Observer[A] with EventStream[B]
 
 Implement `scanLeft`. Hint: you will need to introduce mutable state to store the previous output of `scanLeft` that gets fed back into `scanLeft`.
 
-<div class="scala">
+<div class="solution">
 ```scala
 sealed trait Observer[A] {
   def observe(in: A): Unit =
@@ -154,6 +154,12 @@ sealed trait EventStream[A] {
 
   def map[B](f: A => B): EventStream[B] = {
     val node = Map(f)
+    observers += node
+    node
+  }
+
+  def scanLeft[B](seed: B)(f: A => B): EventStream[B] = {
+    val node = ScanLeft(seed, f)
     observers += node
     node
   }
