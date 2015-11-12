@@ -1,14 +1,14 @@
-# Type Classes
+## Type Classes
 
-How should we got about testing animations? We might want to programatically assert properties of an our animations, such as that they stay within a certain region, or manually inspect individual frames. This is difficult with our current setup.
+We're now ready to tackle the main pattern for which we use implicits: type classes.
 
-To drive our `EventStreams` we need a source to generate events. We could create a dummy event stream that generate events as quickly as possible, but we still have the issue of stopping the events at some point and collecting and inspecting the intermediate results. Now consider that very little about the reactive programs we have written is actually tied to `EventStreams`. The `EventStream` API is almost identical to that of sequences in the collections library. Most of our code could be just as well be written to use, say, `List`, and we can easily inspect the output of a sequence of `List` transforms.
+When we designed our `EventStream` interface we drew inspiration from the existing API of `List`. It can be useful to be able to abstract over `List` and `EventStream`. If we defined such an API, we could write event processing algorithms in terms of this API, making them oblivious to the concrete implementation they run on. Then we could run our algorithms in real-time data using the `EventStream` API and over batch (offline) data using `Lists` without making an code changes.
 
-In this section we going to solve this problem by weilding our new tool: type classes.
+This is a perfect application for type classes. We have two types (`EventStream` and `List`) that share a common interface but don't share a common useful supertype. In fact their are many other types that have an API much like `EventStreams` (in the standard library, `Option` and `Future` come to mind, while in Essential Scala we have implemented some of these methods for types like `Sum`). A few type classes would allow us to unify a whole load of otherwise different types, and allow us to talk in a more abstract way about operations over them.
 
-Ex1. `EventStream` and `List` don't have any common useful superclass, not should they. What Scala pattern should we use to express they share a common interface?
+So, what should our type classes be? We have briefly discussed functors (things that have a `map` method) and monads (have a `flatMap` method). What about `join` and `scanLeft`? They have common names as well. Things that can be joined are called applicative functors, or just applicatives for short. Our scan operation has the same signature as `foldLeft` on a `List`, and we can look at it as a variant on fold. This concept in embodied in the `Foldable` type class.
 
-Ex2. What name can we give to the common interface(s) that `EventStream` and `List` share?
+
 
 Ex3. Implement these interfaces, and give implementations for `EventStream` and `List`. You will run into a problem doing this. To solve this problem we need to learn about kinds and higher-kinded types. 
 

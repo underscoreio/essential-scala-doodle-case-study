@@ -27,6 +27,8 @@ pages:
   - src/pages/animation/implementation.md
   - src/pages/animation/easing.md
 
+  - src/pages/typeclasses/index.md
+  - src/pages/typeclasses/ux.md
   - src/pages/typeclasses/typeclasses.md
 
   - src/pages/links.md
