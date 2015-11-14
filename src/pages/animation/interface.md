@@ -17,9 +17,16 @@ sealed trait EventStream[A] {
 }
 ```
 
-You might be tempted to add `flatMap`. Let's think for a minute about what means. Essentialy `flatMap` allows the function passed to it to choose the upstream event processing network that handles each input. There are event stream systems that allow this but it is tricky to implement and even trickier to reason about. For these reasons I've chosen to not implement `flatMap`.
+You might be tempted to add `flatMap`.
+
+```scala
+def flatMap[B](f: A => EventStream[B]): EventStream[B]
+```
+
+
+Let's think for a minute about what this means. The function `f` uses the input `A` to choose an `EventStream[B]` to handle further processing, thereby possibly changing the downstream event processing network on every input. There are event stream systems that allow this but it is tricky to implement and even trickier to reason about. For these reasons I've chosen to not implement `flatMap` but if you want an additional challenge you can attempt to implement it.
 
 By the way, `scanLeft` is sometimes called `foldP`, meaning "fold over the past". This is the name you'll find in the "functional reactive programming" literature.
 </div>
 
-Compared to the `Image` interface, there is less going on in the `EventStream` interface, though we have new tools (type variables, functions) that we've incorporated. The implementation, however, is going to require a bit more work. We turn to this next.
+The `EventStream` interface is simpler than the `Image` interface, though we have new tools (type variables, functions) that we're using. The implementation, however, is more complex and there is much more variation in possible implementations. In the next section we'll look at one possible implementation, but I encourage you to explore your own ideas.
