@@ -17,7 +17,7 @@ val keys = Canvas.keyDownEventStream(canvas)
 Now we're going to convert key presses into velocity. Velocity in a vector starting at (0, 0), and we'll increment or decrement it by one as appropriate on each key press. Additionally we going to limit the x and y components of velocity to be in the range -5 to 5. This stops the ball flying around the screen to quickly. 
 
 ```scala
-val velocity = keys.foldp(Vec.zero)((key, prev) => {
+val velocity = keys.scanLeft(Vec.zero)((key, prev) => {
       val velocity = 
         key match {
           case Key.Up    => prev + Vec(0, 1)
@@ -34,7 +34,7 @@ val velocity = keys.foldp(Vec.zero)((key, prev) => {
 Now we update the location of the ball by the velocity. Location starts at (0,0) and this time we're limiting it to be within a 600 by 600 screen.
 
 ```scala
-val location = velocity.foldp(Vec.zero){ (velocity, prev) =>
+val location = velocity.scanLeft(Vec.zero){ (velocity, prev) =>
     val location = prev + velocity
     Vec(location.x.min(300).max(-300), location.y.min(300).max(-300))
   }
@@ -53,7 +53,7 @@ If you play with this code you'll find it has an annoying problem: it only updat
 
 ```scala
 val location = redraw.join(velocity).map{ case(ts, m) => m }.
-  foldp(Vec.zero){ (velocity, prev) =>
+  scanLeft(Vec.zero){ (velocity, prev) =>
     val location = prev + velocity
     Vec(location.x.min(300).max(-300), location.y.min(300).max(-300))
   }
