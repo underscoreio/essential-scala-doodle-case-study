@@ -49,7 +49,7 @@ val frames = location.map(location => ball at location)
 Canvas.animate(Java2DCanvas.canvas, frames)
 ```
 
-If you play with this code you'll find it has an annoying problem: it only updates the ball's position on key presses. What we really want is to the ball continually moving around the screen. We can achieve this by joining the `velocity` stream with the `redraw` stream. The resulting stream will have a value everything there is a new value available on either `velocity` and `redraw`. Since `redraw` is updated 60 times a second (the screen refresh rate) this will give us a ball that moves around smoothly. The following redefinition of `location` is sufficient.
+If you play with this code you'll find it has an annoying problem: it only updates the ball's position on key presses. What we really want is to the ball continually moving around the screen. We can achieve this by joining the `velocity` stream with the `redraw` stream. The resulting stream will have a value everytime there is a new value available on either `velocity` and `redraw`. Since `redraw` is updated 60 times a second (the screen refresh rate) this will give us a ball that moves around smoothly. The following redefinition of `location` is sufficient.
 
 ```scala
 val location = redraw.join(velocity).map{ case(ts, m) => m }.
