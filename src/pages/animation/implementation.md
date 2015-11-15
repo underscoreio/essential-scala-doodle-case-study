@@ -128,13 +128,66 @@ sealed trait EventStream[A] {
 }
 final case class Map[A,B](f: A => B) extends Observer[A] with EventStream[B]
 ```
+
+You might feel some unease about this solution. A `Map` has both an input (of type `A`) and an output (of type `B`) but `Observer` only represents the input type. Nonetheless, in the `observe` method we are implicitly making use of the output type `B` when we bind `output` to the result of `f(in)` and then call `observe` on `m`'s observers.
+
+Can we even write down a type for `output`? We can, using a feature called *existential types*. An existential type represents a specific type that we don't know. Here the existential would represent the unknown type `B`. Unfortunately there is a [compiler bug](https://issues.scala-lang.org/browse/SI-6680) that means the compiler actually infers `Any` in this situation.
+
+Let's choose a different solution that doesn't introduce existential types and doesn't trigger this compiler bug. We'll introduce a type to represent a transformation that has both an input and an output---in other words `Observer[A] with EventStream[B]`---and define our structural recursion in this type where both input and output types are available.
+
+This design also allows us to hide our mutable state (the observers) from users of the library. We haven't seen access modifiers in Scala yet, so a quick summary is in order. Scala has protected and private modifiers, like Java, but the meanings are slightly different. The good news is you can forget about the nuance. As we don't use traditional OO inheritance and overriding very often in Scala the details of access modifiers aren't very important. There is only modifier I have ever used in Scala, and that is `private[packageName]`, which makes a definition visible only within the named package. Below I've made `Node` private to the `event` package.
+
+```scala
+package doodle.event
+
+sealed trait Observer[A] {
+  def observe(in: A): Unit 
+}
+sealed trait EventStream[A] {
+  def map[B](f: A => B): EventStream[B]
+}
+private[event] sealed trait Node[A,B] extends Observer[A] with EventStream[B] {
+  import scala.collection.mutable
+
+  val observers: mutable.ListBuffer[Observer[B]] =
+    new mutable.ListBuffer()
+
+  def observe(in: A): Unit =
+    this match {
+      case m @ Map(f) =>
+        val output = f(in)
+        m.observers.foreach(o => o.observe(output))
+    }
+
+  def map[B](f: A => B): EventStream[B] = {
+    val node = Map(f) 
+    observers += node 
+    node
+  }
+}
+final case class Map[A,B](f: A => B) extends Node[A,B]
+```
 </div>
 
-Implement `scanLeft`. Hint: you will need to introduce mutable state to store the previous output of `scanLeft` that gets fed back into `scanLeft`.
+Implement `scanLeft`. Hint: you will need to introduce mutable state to store the previous output of `scanLeft` that gets fed back into `scanLeft` when the next event arrives.
 
 <div class="solution">
 ```scala
+package doodle.event
+
 sealed trait Observer[A] {
+  def observe(in: A): Unit 
+}
+sealed trait EventStream[A] {
+  def map[B](f: A => B): EventStream[B]
+  def scanLeft[B](seed: B)(f: A => B): EventStream[B]
+}
+private[event] sealed trait Node[A,B] extends Observer[A] with EventStream[B] {
+  import scala.collection.mutable
+
+  val observers: mutable.ListBuffer[Observer[B]] =
+    new mutable.ListBuffer()
+
   def observe(in: A): Unit =
     this match {
       case m @ Map(f) =>
@@ -145,16 +198,10 @@ sealed trait Observer[A] {
         s.seed = output
         s.observers.foreach(o => o.observe(output))
     }
-}
-sealed trait EventStream[A] {
-  import scala.collection.mutable
-
-  val observers: mutable.ListBuffer[Observer[A]] =
-    new mutable.ListBuffer()
 
   def map[B](f: A => B): EventStream[B] = {
-    val node = Map(f)
-    observers += node
+    val node = Map(f) 
+    observers += node 
     node
   }
 
@@ -164,8 +211,8 @@ sealed trait EventStream[A] {
     node
   }
 }
-final case class Map[A,B](f: A => B) extends Observer[A] with EventStream[B]
-final case class ScanLeft[A,B](var seed: B, f: (A, B) => B) extends Observer[A] with EventStream[B]
+final case class Map[A,B](f: A => B) extends Node[A,B]
+final case class ScanLeft[A,B](var seed: B, f: (A, B) => B) extends Node[A,B]
 ```
 </div>
 
