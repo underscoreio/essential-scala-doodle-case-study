@@ -6,7 +6,7 @@ When we designed our `EventStream` interface we drew inspiration from the existi
 
 This is a perfect application for type classes. We have two types (`EventStream` and `List`) that share a common interface but don't share a common useful supertype. In fact their are many other types that have an API much like `EventStreams` (in the standard library, `Option` and `Future` come to mind, while in Essential Scala we have implemented some of these methods for types like `Sum`). A few type classes would allow us to unify a whole load of otherwise different types, and allow us to talk in a more abstract way about operations over them.
 
-So, what should our type classes be? We have briefly discussed functors---things that have a `map` method. What about `join` and `scanLeft`? Things that can be joined are called applicative functors, or just applicatives for short. Our scan operation has the same signature as `scanLeft` on a `List`. There is no standard type class so we'll create our own called `Scanable`. Finally we'll through `Monads` into the mix, even though `EventStream` doesn't have `flatMap` method, because they are so useful in other contexts.
+So, what should our type classes be? We have briefly discussed functors---things that have a `map` method. What about `join` and `scanLeft`? Things that can be joined are called applicative functors, or just applicatives for short. Our scan operation has the same signature as `scanLeft` on a `List`. There is no standard type class so we'll create our own called `Scannable`. Finally we'll through `Monads` into the mix, even though `EventStream` doesn't have `flatMap` method, because they are so useful in other contexts.
 
 We have an informal idea of the type classes. Now let's get specific. For a type `F[A]`
 
@@ -18,7 +18,7 @@ We have an informal idea of the type classes. Now let's get specific. For a type
   - `flatMap[B](fa: F[A])(f: A => F[B]): F[B]`
   - `point[A](a: A): F[A]`
   Note you can implement `map` in terms of `flatMap` and `point`.
-- A `Scanable` has a method `scanLeft[B](seed: B)(f: (A, B) => B): F[B]`
+- A `Scannable` has a method `scanLeft[B](seed: B)(f: (B,A) => B): F[B]`
 
 Implement these type classes, putting your code in a package `doodle.typeclasses`. Create type class instances (where you can) for `EventStream` and `List`. Put the `EventStream` instances in its companion object, and the `List` instances in `doodle.typeclasses`.
 
@@ -88,7 +88,7 @@ trait Applicative[F[_]] extends Functor[F] {
   def point[A](a: A): F[A]
 }
 
-trait Scanable[F[_]] {
+trait Scannable[F[_]] {
   def scanLeft[A,B](fa: F[A])(b: B)(f: (B,A) => B): F[B]
 }
 ```
@@ -97,7 +97,7 @@ Now the instances
 
 ```scala
 object ListInstances {
-  implicit object list extends Functor[List] with Monad[List] with Applicative[List] with Scanable[List] {
+  implicit object list extends Functor[List] with Monad[List] with Applicative[List] with Scannable[List] {
     def map[A, B](fa: List[A])(f: A => B): List[B] =
       fa.map(f)
     def flatMap[A, B](fa: List[A])(f: A => List[B]): List[B] =
@@ -112,7 +112,7 @@ object ListInstances {
 }
 
 object EventStream {
-  implicit object eventStream extends Functor[EventStream] with Monad[EventStream] with Applicative[EventStream]with Scanable[EventStream] {
+  implicit object eventStream extends Functor[EventStream] with Monad[EventStream] with Applicative[EventStream]with Scannable[EventStream] {
     def map[A, B](fa: EventStream[A])(f: A => B): EventStream[B] =
       fa.map(f)
     def point[A](a: A): EventStream[A] =
@@ -133,7 +133,7 @@ For extra bonus points implement type class instances for normal types (i.e. for
 object IdInstances {
   type Id[A] = A
 
-  implicit object list extends Functor[Id] with Monad[Id] with Applicative[Id] with Scanable[Id] {
+  implicit object list extends Functor[Id] with Monad[Id] with Applicative[Id] with Scannable[Id] {
     def map[A, B](fa: Id[A])(f: A => B): Id[B] =
       f(fa)
     def flatMap[A, B](fa: Id[A])(f: A => Id[B]): Id[B] =

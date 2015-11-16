@@ -11,7 +11,7 @@ This is a sufficient interface:
 sealed trait EventStream[A] {
   def map[B](f: A => B): EventStream[B]
 
-  def scanLeft[B](seed: B)(f: (A, B) => B): EventStream[B]
+  def scanLeft[B](seed: B)(f: (B,A) => B): EventStream[B]
 
   def join[B](that: EventStream[B]): EventStream[(A,B)]
 }
