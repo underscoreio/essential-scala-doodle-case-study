@@ -20,6 +20,11 @@ pages:
   - src/pages/foundation/atoms.md
   - src/pages/foundation/implementation.md
 
+  - src/pages/random/index.md
+  - src/pages/random/random.md
+  - src/pages/random/implementation.md
+  - src/pages/random/examples.md
+
   - src/pages/animation/index.md
   - src/pages/animation/background.md
   - src/pages/animation/example.md
