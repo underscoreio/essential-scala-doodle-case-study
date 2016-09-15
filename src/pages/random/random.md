@@ -13,7 +13,7 @@ where the `run` method is what we call to actually create a random value. How sh
 <div class="solution">
 We need to add a type variable to `Random` to represent the type of value that the `Random` instance will produce when it is run.
 
-```tut:book
+```scala
 sealed trait Random[A] {
   def run(rng: scala.util.Random): A =
     ???
@@ -53,7 +53,7 @@ With what method should we rpelace `???` to make this type equation hold?
 <div class="solution">
 If we replace `???` with `flatMap` the type equation holds.
 
-```tut:book
+```scala
 Random[Point] flatMap (Point => Random[Point]) = Random[Point]
 ```
 </div>
@@ -76,7 +76,7 @@ val randomPoint: Random[Point] =
 
 This assumes we have a method `zip` on `Random` with type
 
-```tut:book
+```scala
 def zip[B](that: Random[B]): Random[(A,B)] = 
   ???
 ```
@@ -92,7 +92,7 @@ sealed trait Random[A] {
   def run(rng: scala.util.Random): A =
     ???
 
-  def flatMap[B](f: A => Random[b]): Random[B] =
+  def flatMap[B](f: A => Random[B]): Random[B] =
     ???
     
   def map[B](f: A => B): Random[B] =
@@ -114,7 +114,7 @@ sealed trait Random[A] {
   def run(rng: scala.util.Random): A =
     ???
 
-  def flatMap[B](f: A => Random[b]): Random[B] =
+  def flatMap[B](f: A => Random[B]): Random[B] =
     ???
     
   def map[B](f: A => B): Random[B] =
@@ -137,7 +137,7 @@ What other methods should we have, particularly on the companion object of `Rand
 <div class="solution">
 At a minimum we need some constructors to create `Random` instances. We had an example above of `Random.double`. If we look at the methods on `scala.util.Random`, that might inspire some other constructors. For example, we could define
 
-```tut:book
+```scala
 object Random {
   val double: Random[Double] =
     ???

@@ -46,7 +46,7 @@ trait Canvas {
 }
 ```
 
-To draw a shape we call `beginPath`, then issue a series of commands (`moveTo`, `lineTo`, or, `bezierCurveTo`), followed by an `endPath`. We can draw just the outline of the shape, in which case we next call `stroke`, or just fill it (via `fill`), or do both. The colors used for the stroke and fill and set by calls to `setStroke` and `setFill`
+To draw a shape we call `beginPath`, then issue a series of commands (`moveTo`, `lineTo`, or, `bezierCurveTo`), followed by an optional `endPath`. We can draw just the outline of the shape, in which case we next call `stroke`, or just fill it (via `fill`), or do both. The colors used for the stroke and fill and set by calls to `setStroke` and `setFill`
 
 For example, to draw a circle we could use the following method:
 
@@ -74,7 +74,7 @@ def circle(centerX: Double, centerY: Double, radius: Double): Unit = {
 }
 ```
 
-In my experience, there is a lot wrong with this sort of API. We have seen that it is very inconvenient compared to Doodle. Another problem is there is a lot of state involved. There is a single global stroke color, for example. This makes it difficult to abstract parts of an image into methods, as they can overwrite each other's stroke color. Similarly it's not defined what happens if we nest calls to `beginPath`, or if we call `stroke` or `fill` before calling `endPath`, and so on. All of this state makes it hard to create reusable components from which we can build up bigger pictures.
+In my experience, there is a lot wrong with this sort of API. We have seen that it is very inconvenient compared to Doodle. Another problem is there is a lot of state involved. There is a single global stroke color, for example. This makes it difficult to abstract parts of an image into methods, as they can overwrite each other's stroke color. Similarly it's not defined what happens if we nest calls to `beginPath`, or if we call `stroke` or `fill` before calling `beginPath`, and so on. All of this state makes it hard to create reusable components from which we can build up bigger pictures.
 
 The use of a global coordinate system makes layout difficult. Imagine we have code to draw two pictures, and we now want to put these pictures side by side. First we had better have had the foresight to make the starting point of each picture a parameter to the method that draws them, or we won't be able to shift them around. Then we have to calculate our layout manually---work out how wide each picture is, and move them by an appropriate amount so they are balanced across the screen. This is a lot of donkey work, and doing donkey work is what computers are for. 
 

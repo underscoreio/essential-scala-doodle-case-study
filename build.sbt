@@ -1,3 +1,10 @@
+lazy val root = project.in(file("."))
+  .settings(tutSettings)
+
+tutSourceDirectory := sourceDirectory.value / "pages"
+
+tutTargetDirectory := target.value / "pages"
+
 scalaVersion := "2.11.8"
 
 scalacOptions ++= Seq(
@@ -5,48 +12,18 @@ scalacOptions ++= Seq(
   "-encoding", "UTF-8",
   "-unchecked",
   "-feature",
-  "-language:implicitConversions",
-  "-language:postfixOps",
-  "-Ywarn-dead-code",
   "-Xlint",
-  "-Xfatal-warnings"
+  "-Xfatal-warnings",
+  "-Ywarn-dead-code"
+    //"-Yliteral-types"
 )
 
-lazy val root = project.in(file("."))
-  .settings(tutSettings)
-
-resolvers += Resolver.bintrayRepo("underscoreio", "training")
-
-libraryDependencies ++= Seq(
-  "org.typelevel" %% "cats" % "0.6.0"
-)
-
-tutSourceDirectory := sourceDirectory.value / "raw"
-
-tutTargetDirectory := sourceDirectory.value / "pages"
-
-lazy val pdf = taskKey[Unit]("Build the PDF version of the book")
+lazy val pdf  = taskKey[Unit]("Build the PDF version of the book")
 lazy val html = taskKey[Unit]("Build the HTML version of the book")
-lazy val epub = taskKey[Unit]("Build the ePUB version of the book")
-lazy val all = taskKey[Unit]("Build all versions of the book")
+lazy val epub = taskKey[Unit]("Build the ePub version of the book")
+lazy val all  = taskKey[Unit]("Build all versions of the book")
 
-pdf := {
-  val a = tut.value
-  "grunt pdf" !
-}
-
-html := {
-  val a = tut.value
-  "grunt html" !
-}
-
-epub := {
-  val a = tut.value
-  "grunt epub" !
-}
-
-
-all := {
-  val a = tut.value
-  "grunt all" !
-}
+pdf  := { tut.value ; "grunt pdf"  ! }
+html := { tut.value ; "grunt html" ! }
+epub := { tut.value ; "grunt epub" ! }
+all  := { pdf ; html ; epub }

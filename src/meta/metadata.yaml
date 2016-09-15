@@ -2,7 +2,8 @@
 # Used by Pandoc to print covers:
 title: "Essential Scala: Doodle Case Study"
 author: "Noel Welsh and Dave Gurnell"
-date: "Pre-release Version, August 2015"
+date: "Pre-release Version, September 2016"
+copyright: "2015-2016"
 # Used by Pandoc to generate the PDF cover...
 # see src/css/book.css for HTML/ePub covers:
 coverColor: "E8515B"
@@ -12,30 +13,30 @@ filenameStem: "essential-scala-doodle-case-study"
 exercisesRepo: null # "git@github.com:underscoreio/essential-scala-code.git"
 # Used by Grunt to assemble pandoc command line:
 pages:
-  - src/pages/index.md
+  - index.md
 
-  - src/pages/foundation/index.md
-  - src/pages/foundation/background.md
-  - src/pages/foundation/properties.md
-  - src/pages/foundation/atoms.md
-  - src/pages/foundation/implementation.md
+  - foundation/index.md
+  - foundation/background.md
+  - foundation/properties.md
+  - foundation/atoms.md
+  - foundation/implementation.md
 
-  - src/pages/random/index.md
-  - src/pages/random/random.md
-  - src/pages/random/implementation.md
-  - src/pages/random/examples.md
+  - random/index.md
+  - random/random.md
+  - random/implementation.md
+  - random/examples.md
 
-  - src/pages/animation/index.md
-  - src/pages/animation/background.md
-  - src/pages/animation/example.md
-  - src/pages/animation/interface.md
-  - src/pages/animation/implementation.md
-  - src/pages/animation/easing.md
+  - animation/index.md
+  - animation/background.md
+  - animation/example.md
+  - animation/interface.md
+  - animation/implementation.md
+  - animation/easing.md
 
-  - src/pages/typeclasses/index.md
-  - src/pages/typeclasses/ux.md
-  - src/pages/typeclasses/typeclasses.md
+  - typeclasses/index.md
+  - typeclasses/ux.md
+  - typeclasses/typeclasses.md
 
-  - src/pages/links.md
-  - src/pages/solutions.md
+  - links.md
+  - solutions.md
 ...

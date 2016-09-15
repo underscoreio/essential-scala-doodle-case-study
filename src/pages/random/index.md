@@ -6,7 +6,7 @@ In this section we'll develop a library for generating random data. Why random d
 - performing probabilistic inference on data.
 
 
-![Brownian motion, studies of which led to Jean Perrin receiving the Nobel Prize in 1926, rendered for artistic effect.](src/raw/random/brownian-motion.pdf+svg){#fig:random:brownian-motion}
+![Brownian motion, studies of which led to Jean Perrin receiving the Nobel Prize in 1926, rendered for artistic effect.](target/pages/random/brownian-motion.pdf+svg){#fig:random:brownian-motion}
 
 
 ## Why Not `scala.util.Random`?
