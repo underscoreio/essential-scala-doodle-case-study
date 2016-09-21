@@ -6,11 +6,11 @@ We're now ready to implement the complete system. We have provided a framework o
 - the `jvm` directory, which contains code specific to rendering graphics using the Java 2D library; and
 - the `js` directory, which contains code for rendering using the web browser canvas.
 
-Your code should go in the `doodle.core` package (in `shared/src/main/scala/doodle/core`). Within this package you will find utilities for handling color, angles, and other code that might be useful to you. 
+Your code should start coding in the `doodle.core` package (in `shared/src/main/scala/doodle/core`). Within this package you will find utilities for handling color, angles, and other code that might be useful to you. 
 
 Within the `shared` directory there is also the `backend` package that contains the `Canvas` interface. When you come to actually drawing images you should assume you'll be passed as `Canvas` implementation.
 
-Finally, to use the code here are some useful tips:
+Finally, here are some useful tips on using the code:
 
 - you can start the Scala console by using the `console` command in sbt;
 - within the console, you will have a Java 2D `Canvas` available, which you can access by calling `Java2DCanvas.canvas`;
@@ -58,7 +58,7 @@ This code is in `Example.scala` in the `jvm` project.
 
 There is something that you might find a bit unexpected in the implementation of your library: an image should not been drawn until you call the `draw` method. This is necessary as we need to know the entire image before we can layout its components. Concretely, if we're rendering one image beside another, we need to know their heights so we can vertically center them. If we draw images as soon as they were created we won't know that they should be laid out in this way. The upshot is when we call, say, `image1 beside image2`, we need to represent this as a data structure somehow. When we come to do layout we also need to know the height and width of each component image. We can easily calculate this with bounding boxes---they are easy to implement and sufficient if we only allow horizontal and vertical composition.
 
-The idea of separating the description of the computation (the image data structure) from the process that carries it out (drawing) is a classic functional programming technique, and one we will see multiple times.
+The idea of separating the description of the computation (the instance of `Image`) from the process that carries it out (drawing) is a classic functional programming technique, and one we will see multiple times.
 
 ### Your Mission
 
@@ -69,9 +69,9 @@ Your final mission is to finish off the library:
 
 Along the way you will probably have to implement a bounding box abstraction.
 
-If you're not sure where to start follow along with the rest of this section. If you think you can do it yourself, get stuck in!
+If you're not sure where to start, follow along with the rest of this section. If you think you can do it yourself, get stuck in!
 
-When you have finished, you can compare your implementation to mine by switching to the [feature/atoms-and-operations branch](https://github.com/underscoreio/doodle-case-study/tree/feature/atoms-and-operations) in your fork of the case study repository.
+When you have finished, you can compare your implementation to ours by switching to the [feature/atoms-and-operations branch](https://github.com/underscoreio/doodle-case-study/tree/feature/atoms-and-operations) in your fork of the case study repository.
 
 #### Drawing Something
 
@@ -99,7 +99,7 @@ final case class Rectangle(width: Double, height:  Double) extends Image
 
 Our first mission is to get some visible progress, so we'll implement `draw`. We're completely ignoring layout at this point, so you can just draw images at the origin (or anywhere else that takes your fancy). 
 
-What's the pattern we'll use in the implementation?
+What pattern will we use in the implementation?
 
 <div class="solution">
 `Image` is an algebraic data type, so we'll use structural recursion.

@@ -1,6 +1,6 @@
 ## Atoms and Operations
 
-Now we have thought about the properties of our system, let's think about the most basic classes and operations on those classes. By now you should have had a play with Doodle and have a good idea of it's model. In Doodle the "atoms" are basic geometric shapes like circles, rectangles, and triangles. The operations that combine the atoms are layout methods like `on` and `beside`, and methods to manipulate stroke and fill.
+Now we have thought about the properties of our system, let's think about the most basic classes and operations on those classes. By now you should have had a play with Doodle and hold a basic understanding of its model. In Doodle, the "atoms" are basic geometric shapes like circles, rectangles, and triangles. The operations that combine the atoms are layout methods like `on` and `beside`, and methods to manipulate stroke and fill.
 
 Design a data type to represent the "atoms" in your model. You should probably use an algebraic data type. Hint: You might want to look at the [Canvas](https://github.com/underscoreio/doodle-case-study/blob/master/shared/src/main/scala/doodle/backend/Canvas.scala), which is the low-level interface we'll implement our higher-level interface against.
 
@@ -13,7 +13,7 @@ final case class Circle(radius: Double) extends Image
 final case class Rectangle(width: Double, height:  Double) extends Image
 ```
 
-The low-level abstraction we are rendering to is built on paths. We could model this as, say "A `PathElement` is a `MoveTo`, `LineTo`, or `CurveTo`" and "A `Path` is a sequence of `PathElements`". This is actually the representation that Doodle uses, but we provide a higher-level interface like `Image` above for convenience. The `Path` interface can also be directly converted into code. (At this point in Essential Scala we haven't seen the `Seq` type yet. It represents a sequence of elements.)
+The low-level abstraction we are rendering to is built on paths. We could model this as, say "A `PathElement` is a `MoveTo`, `LineTo`, or `CurveTo`" and "A `Path` is a sequence of `PathElements`". Doodle actually uses this as a low-level representation, but we also provide a higher-level interface like `Image` for convenience. The `Path` interface can be directly converted into code just like `Image`. (At this point in Essential Scala we haven't seen the `Seq` type yet. It represents a sequence of elements.)
 
 ```scala
 sealed trait PathElement
