@@ -27,9 +27,9 @@ Your final mission is to finish off the library:
 
 Along the way you will probably have to implement a bounding box abstraction.
 
-If you're not sure where to start follow along with the rest of this section. If you think you can do it yourself, get stuck in!
+If you're not sure where to start, follow along with the rest of this section. If you think you can do it yourself, get stuck in!
 
-When you have finished, you can compare your implementation to mine by switching to the [feature/atoms-and-operations branch](https://github.com/underscoreio/doodle-case-study/tree/feature/atoms-and-operations) in your fork of the case study repository.
+When you have finished, you can compare your implementation to ours by switching to the [feature/atoms-and-operations branch](https://github.com/underscoreio/doodle-case-study/tree/feature/atoms-and-operations) in your fork of the case study repository.
 
 #### Drawing Something
 
@@ -57,7 +57,7 @@ final case class Rectangle(width: Double, height:  Double) extends Image
 
 Our first mission is to get some visible progress, so we'll implement `draw`. We're completely ignoring layout at this point, so you can just draw images at the origin (or anywhere else that takes your fancy). 
 
-What's the pattern we'll use in the implementation?
+What pattern will we use in the implementation?
 
 <div class="solution">
 `Image` is an algebraic data type, so we'll use structural recursion.

@@ -9,7 +9,7 @@ A *compostional* library allows us to build larger pictures from smaller ones by
 
 Compostionality implies there is no global state. There are many closely related terms that all boil down to removing state: maintaining *substitution*, enabling *local reasoning*, *referential transparency*, or *purity*.
 
-*Closure* is another property implied by compositionality. This means there will be operations that take two or more pictures and return an element of the same type. Closure allows us to apply operations indefinitely to build more complex pictures from simpler ones.
+*Closure* is another property implied by compositionality. This means there are operations that take two or more pictures and return an element of the same type. Closure allows us to apply operations indefinitely to build more complex pictures from simpler ones.
 
 Our library should allow operations in terms of a *local coordinate system* to make composition easier.
 
