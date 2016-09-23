@@ -1,64 +1,22 @@
 ## Implementation
 
-We're now ready to implement the complete system. We have provided a framework of code to build on, which you can find on [Github](https://github.com/underscoreio/doodle-case-study). The project is laid as follows:
+We're now ready to implement the complete system. We have provided a framework of code to build on, which you can find on [Github](https://github.com/underscoreio/doodle-case-study). The code you'll interact with can found within `src/main/scala/doodle`. Within this directory you'll find the following sub-directories:
 
-- the `shared` directory, which contains most of the code you will interact with;
-- the `jvm` directory, which contains code specific to rendering graphics using the Java 2D library; and
-- the `js` directory, which contains code for rendering using the web browser canvas.
+- `core`, which is where most of your code should go, and where you'll find many useful utilities;
+- `backend`, containing the `Canvas` interface;
+- `example`, containing a few simple examples;
+- `jvm`, containing an implementation of `Canvas` for the JVM's Java2D library; and
+- `syntax`, which has a few utilities that you can ignore for now.
 
-Your code should go in the `doodle.core` package (in `shared/src/main/scala/doodle/core`). Within this package you will find utilities for handling color, angles, and other code that might be useful to you. 
-
-Within the `shared` directory there is also the `backend` package that contains the `Canvas` interface. When you come to actually drawing images you should assume you'll be passed as `Canvas` implementation.
-
-Finally, to use the code here are some useful tips:
-
-- you can start the Scala console by using the `console` command in sbt;
-- within the console, you will have a Java 2D `Canvas` available, which you can access by calling `Java2DCanvas.canvas`;
-- you will also have the contents of `doodle.core` automatically imported into the console;
-- you can type Scala code into the console and use it as a simple tool to test your programs.
-
-To quickly draw something you might try code like the following within the console:
-
-```scala
-val canvas = Java2DCanvas.canvas
-
-// The coordinates for this (upside down) dog in the style of Picasso comes
-// from a Jeremy Kun:
-// http://jeremykun.com/2013/05/11/bezier-curves-and-picasso/
-
-canvas.setSize(500, 500)
-canvas.setOrigin(-250, 200)
-canvas.beginPath()
-canvas.moveTo(180,280)
-canvas.bezierCurveTo(183,268, 186,256, 189,244) // front leg
-canvas.moveTo(191,244)
-canvas.bezierCurveTo(290,244, 300,230, 339,245)
-canvas.moveTo(340,246)
-canvas.bezierCurveTo(350,290, 360,300, 355,210)
-canvas.moveTo(353,210)
-canvas.bezierCurveTo(370,207, 380,196, 375,193)
-canvas.moveTo(375,193)
-canvas.bezierCurveTo(310,220, 190,220, 164,205) // back
-canvas.moveTo(164,205)
-canvas.bezierCurveTo(135,194, 135,265, 153,275) // ear start
-canvas.moveTo(153,275)
-canvas.bezierCurveTo(168,275, 170,180, 150,190) // ear end + head
-canvas.moveTo(149,190)
-canvas.bezierCurveTo(122,214, 142,204, 85,240)  // nose bridge
-canvas.moveTo(86,240)
-canvas.bezierCurveTo(100,247, 125,233, 140,238)   // mouth
-canvas.endPath()
-canvas.setStroke(Stroke(3.0, Color.black, Line.Cap.Round, Line.Join.Round))
-canvas.stroke()
-```
-
-This code is in `Example.scala` in the `jvm` project.
 
 ### Implementation Techniques
 
-There is something that you might find a bit unexpected in the implementation of your library: an image should not been drawn until you call the `draw` method. This is necessary as we need to know the entire image before we can layout its components. Concretely, if we're rendering one image beside another, we need to know their heights so we can vertically center them. If we draw images as soon as they were created we won't know that they should be laid out in this way. The upshot is when we call, say, `image1 beside image2`, we need to represent this as a data structure somehow. When we come to do layout we also need to know the height and width of each component image. We can easily calculate this with bounding boxes---they are easy to implement and sufficient if we only allow horizontal and vertical composition.
+There is something that you might find a bit unexpected in the implementation of your library: nothing should be drawn until you call the `draw` method. This is necessary as we need to know the entire image before we can layout its components. Concretely, if we're rendering one image beside another, we need to know their heights so we can vertically center them. If we draw images as soon as they were created we won't know that they should be laid out in this way. The upshot is when we call, say, `image1 beside image2`, we need to represent this as a data structure somehow. 
 
-The idea of separating the description of the computation (the image data structure) from the process that carries it out (drawing) is a classic functional programming technique, and one we will see multiple times.
+The idea of separating the description of the computation (the image data structure) from the process that carries it out (drawing) is a classic functional programming technique, and one we will see multiple times. Being functional programming, we have a fancy word for this: *reification*. Reification means to make concrete something that was abstract. In our case we're turning what seems like an action (e.g. `beside`) into a concrete data structure.
+
+When we come to do layout we need to know the height and width of each component image. We can easily calculate this with bounding boxes---they are easy to implement and sufficient if we only allow horizontal and vertical composition.
+
 
 ### Your Mission
 

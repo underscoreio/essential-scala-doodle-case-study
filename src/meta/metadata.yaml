@@ -16,6 +16,7 @@ pages:
   - index.md
 
   - foundation/index.md
+  - foundation/setup.md
   - foundation/background.md
   - foundation/properties.md
   - foundation/atoms.md

@@ -1,8 +1,29 @@
 ## Atoms and Operations
 
-Now we have thought about the properties of our system, let's think about the most basic classes and operations on those classes. By now you should have had a play with Doodle and have a good idea of it's model. In Doodle the "atoms" are basic geometric shapes like circles, rectangles, and triangles. The operations that combine the atoms are layout methods like `on` and `beside`, and methods to manipulate stroke and fill.
+Now we have thought about the properties of our system, let's think about the most basic types, and the operations on those types. In other words, what is the basic API (application programming interface) that our system will provide? We don't need to write code right now, but it will help to be somewhat formal.
 
-Design a data type to represent the "atoms" in your model. You should probably use an algebraic data type. Hint: You might want to look at the [Canvas](https://github.com/underscoreio/doodle-case-study/blob/master/shared/src/main/scala/doodle/backend/Canvas.scala), which is the low-level interface we'll implement our higher-level interface against.
+<div class="solution">
+There is no right solution to this. Indeed we're hoping that your design will be different to ours, as this will allow you to compare different approaches and learn by doing so.
+
+In Doodle the core type is `Image`. Basic images are geometric shapes like `Circle`, `Rectangle`, and `Triangle`.
+
+Operations on `Image` include layout operations:
+
+- `Image above Image = Image`
+- `Image on Image = Image`
+- `Image beside Image = Image`
+- `Image at Vec = Image`
+
+Here I'm writing how the operations work in terms of types. An `Image` on an `Image` returns an `Image`, for example.
+
+There are also operations for changing the style:
+
+- `Image fillColor Color = Image`
+- `Image lineColor Color = Image`
+- `Image lineWidth Double = Image`
+</div>
+
+Design a data type to represent the "atoms" in your model. You should probably use an algebraic data type. Hint: You might want to look at the [Canvas](https://github.com/underscoreio/doodle-case-study/blob/master/shared/src/main/scala/doodle/backend/Canvas.scala), which is the low-level interface we'll implement our higher-level interface against. This will help you determine what's possible in the context of the case study, and the types involved.
 
 <div class="solution">
 We can start with a very simple model like so: "An `Image` is a `Circle` or a `Rectangle`". You should be immediately be able to translate this into code.
@@ -10,10 +31,10 @@ We can start with a very simple model like so: "An `Image` is a `Circle` or a `R
 ```scala
 sealed trait Image
 final case class Circle(radius: Double) extends Image
-final case class Rectangle(width: Double, height:  Double) extends Image
+final case class Rectangle(width: Double, height: Double) extends Image
 ```
 
-The low-level abstraction we are rendering to is built on paths. We could model this as, say "A `PathElement` is a `MoveTo`, `LineTo`, or `CurveTo`" and "A `Path` is a sequence of `PathElements`". This is actually the representation that Doodle uses, but we provide a higher-level interface like `Image` above for convenience. The `Path` interface can also be directly converted into code. (At this point in Essential Scala we haven't seen the `Seq` type yet. It represents a sequence of elements.)
+The `Canvas` abstraction we are rendering to is built on paths. We could model this as, say "A `PathElement` is a `MoveTo`, `LineTo`, or `CurveTo`" and "A `Path` is a sequence of `PathElements`". This is actually the representation that Doodle uses, but we provide a higher-level interface like `Image` above for convenience. The `Path` interface can also be directly converted into code. (At this point in Essential Scala we haven't seen the `Seq` type yet. It represents a sequence of elements.)
 
 ```scala
 sealed trait PathElement
