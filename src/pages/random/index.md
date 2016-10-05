@@ -3,10 +3,10 @@
 In this section we'll develop a library for generating random data. Why random data? In our context, it is useful for generating art, as depicted in [@fig:random:brownian-motion]. There are other uses, including
 
 - generating test data for *property based testing*; and
-- performing probabilistic inference on data.
+- performing probabilistic inference on data, a subfield of statistics and machine learning.
 
 
-![Brownian motion, studies of which led to Jean Perrin receiving the Nobel Prize in 1926, rendered for artistic effect.](target/pages/random/brownian-motion.pdf+svg){#fig:random:brownian-motion}
+![Brownian motion, studies of which led to Jean Perrin receiving the Nobel Prize in 1926, rendered for artistic effect.](src/pages/random/brownian-motion.pdf+svg){#fig:random:brownian-motion}
 
 
 ## Why Not `scala.util.Random`?

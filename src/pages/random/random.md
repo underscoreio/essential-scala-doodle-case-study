@@ -1,5 +1,4 @@
-## A Random API
-
+## A Random API 
 We'll represent our API with a type `Random`. Our basic and very incomplete model is
 
 ```scala
@@ -13,7 +12,7 @@ where the `run` method is what we call to actually create a random value. How sh
 <div class="solution">
 We need to add a type variable to `Random` to represent the type of value that the `Random` instance will produce when it is run.
 
-```scala
+```tut:book:silent
 sealed trait Random[A] {
   def run(rng: scala.util.Random): A =
     ???
@@ -31,24 +30,28 @@ What other methods do we want on `Random`? Probability distributions are well st
 
 What do these mean? Let's focus on conditional distributions, because we can express independent distributions using them.
 
-A conditional distribution is a distribution that is defined in terms of some input value. Concretely, imagine we are implementing a process to render a random walk, as depicted in [@fig:random:brownian-motion]. In this process the next point to render is located at the current point plus some random noise. 
+A conditional distribution is a distribution that is defined in terms of some input value. Concretely, imagine we are implementing a process to render a random walk, as depicted in [@fig:random:brownian-motion]. In a random walk we have a notion of a particle that is located at some point. At each time step we take the current point and add some random noise to generate the next point.
 
 ```scala
 def walk(current: Point): Random[Point] = {
-  // This code won't work but it illustrative of what we want to achieve.
+  // This code won't work but is illustrative of what we want to achieve.
   current + noise 
 }
 ```
 
-At each step we'll start with a `Random[Point]`, which we'd like to compose with `walk` above, giving
+The `walk` method gives us as way to update the current point. Now imagine running this process over many steps. At each step we'll start with a `Random[Point]`, which we'd like to compose with `walk` above, giving a new `Random[Point]`. We can write down a type equation giving us
 
 ```scala
 Random[Point] ??? walk = Random[Point]
-// Expand the type of walk
+```
+
+We're using `walk` as a `Point => Random[Point]` function, so we can write
+
+```scala
 Random[Point] ??? (Point => Random[Point]) = Random[Point]
 ```
 
-With what method should we rpelace `???` to make this type equation hold?
+We've seen a method we can replace `???` with to make this type equation hold. What method is it?
 
 <div class="solution">
 If we replace `???` with `flatMap` the type equation holds.

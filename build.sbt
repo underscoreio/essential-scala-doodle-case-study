@@ -13,7 +13,6 @@ scalacOptions ++= Seq(
   "-unchecked",
   "-feature",
   "-Xlint",
-  "-Xfatal-warnings",
   "-Ywarn-dead-code"
     //"-Yliteral-types"
 )

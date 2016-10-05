@@ -1,15 +1,51 @@
 ## Implementation
 
+Here's the API we designed in the previous section.
+
+```tut:book:silent
+sealed trait Random[A] {
+  def run(rng: scala.util.Random): A =
+    ???
+
+  def flatMap[B](f: A => Random[B]): Random[B] =
+    ???
+    
+  def map[B](f: A => B): Random[B] =
+    ???
+    
+  def zip[B](that: Random[B]): Random[(A,B)] =
+    for {
+      a <- this
+      b <- that
+    } yield (a, b)
+}
+object Random {
+  val double: Random[Double] =
+    ???
+    
+  val int: Random[Int] =
+    ???
+    
+  /** Generate a value from a normal or Gaussian distribution. */
+  val normal: Random[Double] =
+    ???
+    
+  /** Create a Random value that always generates `in`. */
+  def always[A](in: A): Random[A] =
+    ???
+}
+```
+
 We're now ready to implement our `Random` data type. You should have all the tools you need to do this, but look at the solution below if you need a hint.
 
 <div class="solution">
-You can use the same reification strategy we used for `Image` to implement `Random`.
+We can implement `Random` using the same reification strategy we used for `Image`.
 </div>
 
-When you've completed your implementation take a look at ours.
+When you've completed your implementation compare it to ours.
 
 <div class="solution">
-Our implementation is below. It uses the same reification strategy we used for `Image`. In this case it's slightly more complicated because we need to store `this` in `FlatMap` and `Map`.
+Our implementation is below. It uses the same reification strategy we used for `Image`, converting `flatMap` and `map` into data structures (`FlatMap` and `Map` respectively). We add another case, `Primitive`, to store the basic "atoms" we build more complicated random processes from.
 
 The `Map` case is not strictly necessary, as we could implement it in terms of `FlatMap` and `Primitive`.
 
