@@ -1,461 +1,519 @@
 ## Implementation
 
-We're now going to implement `EventStream`. We will start with a very simple and somewhat broken implementation, and then explore improvements of increasing complexity.
+We're now going to implement `Stream`. 
+We're going to tackle the implementation in a number of steps:
 
-### Mutable State
+1. We will start by ignoring concurrency, and assuming all our data arrives from an `Iterator` (a built-in Scala type). With this assumption, and by reducing our interface a little bit, we can quickly build a working system.
 
-Our initial implementation will use mutable state.
+2. We will add `scanLeft`, which requires we add state and leads to a slighly more complicated implementation.
 
-Observability and equivalence. Unobservable state isn't a problem.
+3. We will add concurrency, which makes our implementation substantially more complicated but makes it useful for our end-goal: animating shapes.
+
+A bit of terminology will be useful.
+We will say that data flows from *source* to *sink*.
+Moving from source to sink is moving *downstream*, and the reverse is going *upstream*.
 
 
-### Push-driven Implementation
+### Basics
 
-Our implementation approach will be push-driven. This means that when a source receives an event, we will push that event to observing nodes, and so on up the graph till we reach a node with no observers. The implication is that each node must store its observers. Let's tackle this in small steps, starting by implementing `map`.
+Let's start by implementing the following API:
 
-We have the interface
+```tut:silent:book
+object streamWrapper {
+sealed trait Stream[A] {
+  def map[B](f: A => B): Stream[B]
 
-```scala
-sealed trait EventStream[A] {
-  def map[B](f: A => B): EventStream[B]
+  def zip[B](that: Stream[B]): Stream[(A,B)]
+  
+  def runFold[B](zero: B)(f: (B, A) => B): B
 }
-```
-
-Start by somehow implementing `map` *without worrying about observers*. Hint: use the same trick we used to implement layout for `Image`.
-
-<div class="solution">
-Just like we did for the layout combinators (`beside`, `on`, etc.) we can represent as data the computations we don't know how to actually implement at this stage.
-
-```scala
-sealed trait EventStream[A] {
-  def map[B](f: A => B): EventStream[B] =
-    Map(f)
-}
-final case class Map[A,B](f: A => B) extends EventStream[B]
-```
-
-Note that `Map` extends `EventStream[B]`. Remember the type parameter indicates the type of events the stream produces. We need the extra parameter `A` to denote the type of events that `Map` accepts.
-</div>
-
-Now we're going to add in the observers. These observers are a collection (a `List` will do), but of what type? An `EventStream[A]` generates events of type `A` but it says nothing about the type of events it accepts as input, or if it even accepts input at all. We need another type to represent this. The `Observer` type will do
-
-```scala
-sealed trait Observer[A] {
-  // We'll implement this later.
-  def observe(in: A): Unit =
+object Stream {
+  def fromIterator[A](source: Iterator[A]): Stream[A] =
     ???
 }
+}; import streamWrapper._
 ```
 
-Now we can specify that `Map` is an `Observer[A]` and an `EventStream[B]`, though we don't know how to implement `observe` yet.
+Notice that we've dropped `scanLeft`, and we've renamed `join` to `zip`.
+We'll see why later.
 
-```scala
-final case class Map[A,B](f: A => B) extends Observer[A] with EventStream[B] 
-```
+The API has the following components:
 
-Now we can say every `EventStream[A]` has a collection of observers of type `Observer[A]`. It doesn't really matter what collection type we use, but we'll have to be able to update it---so it either needs to be a mutable collection or stored in a `var`. Implement this.
+- we create a `Stream` using `fromIterator`;
+- we transform a `Stream` using `map` and `zip`; and
+- we run a `Stream` using `runFold`.
+
+You can implement this using exactly the same technique we used with `Image`:
+
+- reify the majority of the API; and
+- implement an "interpreter" in `runFold`.
+
+We encourage you to try this on your own before reading our solution.
+Our solution is broken into stages so you can refer to the different parts if you get stuck.
+
+First we reify the API.
+Remember that reification means "turn into data".
+This basically means creating an algebraic data type.
 
 <div class="solution">
-I've chosen to use a mutable `ListBuffer`, but you could equally use a `List` stored in a `var`.
+```tut:silent:book
+object streamWrapper {
+sealed trait Stream[A] {
+  import Stream._
 
-```scala
-sealed trait Observer[A] {
-  def observe(in: A): Unit =
+  def zip[B](that: Stream[B]): Stream[(A,B)] =
+    Zip(this, that)
+
+  def map[B](f: A => B): Stream[B] =
+    Map(this, f)
+
+  def runFold[B](zero: B)(f: (B, A) => B): B =
     ???
 }
-sealed trait EventStream[A] {
-  import scala.collection.mutable
+object Stream {
+  def fromIterator[A](source: Iterator[A]): Stream[A] =
+    FromIterator(source)
 
-  val observers: mutable.ListBuffer[Observer[A]] =
-    new mutable.ListBuffer()
+  def always[A](element: A): Stream[A] =
+    FromIterator(Iterator.continually(element))
 
-  def map[B](f: A => B): EventStream[B] =
-    Map(f)
+  def apply[A](elements: A*): Stream[A] =
+    FromIterator(Iterator(elements: _*))
+
+  // Stream algebraic data type
+  final case class Zip[A,B](left: Stream[A], right: Stream[B]) extends Stream[(A,B)]
+  final case class Map[A,B](source: Stream[A], f: A => B) extends Stream[B]
+  final case class FromIterator[A](source: Iterator[A]) extends Stream[A]
 }
-final case class Map[A,B](f: A => B) extends EventStream[B]
+}; import streamWrapper._
 ```
 </div>
 
-When we `map` over an event stream we need to add a new observer to the `EventStream`. Implement this.
+Now we can implement the interpreter in `runFold`.
+We want to process elements one at a time, like we will in the full system, so the straightforward structural recursion approach won't work. (Try it and see---you'll end up processing all elements at once.)
+We will first implement a method `next` that gets the next element from the `Stream`.
+This is a structural recursion so is straightforward to implement.
 
 <div class="solution">
-```scala
-sealed trait Observer[A] {
-  def observe(in: A): Unit =
+```tut:silent:book
+object streamWrapper {
+sealed trait Stream[A] {
+  import Stream._
+  // etc ...
+
+  def runFold[B](zero: B)(f: (B, A) => B): B = {
+    def next[A](stream: Stream[A]): A =
+      stream match {
+        case FromIterator(source) => source.next()
+        case Map(source, f) => f(next(source))
+        case Zip(left, right) => (next(left), next(right))
+      }
+  
     ???
-}
-sealed trait EventStream[A] {
-  import scala.collection.mutable
-
-  val observers: mutable.ListBuffer[Observer[A]] =
-    new mutable.ListBuffer()
-
-  def map[B](f: A => B): EventStream[B] = {
-    val node = Map(f) 
-    observers += node 
-    node
   }
 }
-final case class Map[A,B](f: A => B) extends Observer[A] with EventStream[B]
+object Stream {
+  // etc ...
+  
+  // Stream algebraic data type
+  final case class Zip[A,B](left: Stream[A], right: Stream[B]) extends Stream[(A,B)]
+  final case class Map[A,B](source: Stream[A], f: A => B) extends Stream[B]
+  final case class FromIterator[A](source: Iterator[A]) extends Stream[A]
+}
+}; import streamWrapper._
 ```
 </div>
 
-This is the basic implementation pattern we will use for the rest of the methods. Before we implement the rest of the API let's get `observe` working. What are we going to do in `observe`? Our only concrete implementation is `Map`. In `Map` we want to transform the input using the function `f` and then push that output to all observers. We might (rightly) worry about the order in which we push the output, but for now we'll ignore that question---any order will do.
+Now we implement `runFold` using `next`.
 
 <div class="solution">
-We can implement `observe` using structural recursion. At this point we're not worried about the order in which we update the observers, so I've chosen left-to-right traversal. Since each call to `observe` will recursively result in another update, this choice also gives us depth-first traversal of the graph.
+```tut:silent:book
+object streamWrapper {
+sealed trait Stream[A] {
+  import Stream._
+  // etc ...
 
-```scala
-sealed trait Observer[A] {
-  def observe(in: A): Unit =
-    this match {
-      case m @ Map(f) =>
-        val output = f(in)
-        m.observers.foreach(o => o.observe(output))
+  def runFold[B](zero: B)(f: (B, A) => B): B = {
+    def next[A](stream: Stream[A]): A =
+      stream match {
+        case FromIterator(source) => source.next()
+        case Map(source, f) => f(next(source))
+        case Zip(left, right) => (next(left), next(right))
+      }
+  
+    // Never terminates
+    def loop(result: B): B = {
+      loop(f(result, next(this)))
     }
-}
-sealed trait EventStream[A] {
-  import scala.collection.mutable
-
-  val observers: mutable.ListBuffer[Observer[A]] =
-    new mutable.ListBuffer()
-
-  def map[B](f: A => B): EventStream[B] = {
-    val node = Map(f) 
-    observers += node 
-    node
+  
+    loop(zero)
   }
 }
-final case class Map[A,B](f: A => B) extends Observer[A] with EventStream[B]
-```
-
-You might feel some unease about this solution. A `Map` has both an input (of type `A`) and an output (of type `B`) but `Observer` only represents the input type. Nonetheless, in the `observe` method we are implicitly making use of the output type `B` when we bind `output` to the result of `f(in)` and then call `observe` on `m`'s observers.
-
-Can we even write down a type for `output`? We can, using a feature called *existential types*. An existential type represents a specific type that we don't know. Here the existential would represent the unknown type `B`. Unfortunately there is a [compiler bug](https://issues.scala-lang.org/browse/SI-6680) that means the compiler actually infers `Any` in this situation.
-
-Let's choose a different solution that doesn't introduce existential types and doesn't trigger this compiler bug. We'll introduce a type to represent a transformation that has both an input and an output---in other words `Observer[A] with EventStream[B]`---and define our structural recursion in this type where both input and output types are available.
-
-This design also allows us to hide our mutable state (the observers) from users of the library. We haven't seen access modifiers in Scala yet, so a quick summary is in order. Scala has protected and private modifiers, like Java, but the meanings are slightly different. The good news is you can forget about the nuance. As we don't use traditional OO inheritance and overriding very often in Scala the details of access modifiers aren't very important. There is only modifier I have ever used in Scala, and that is `private[packageName]`, which makes a definition visible only within the named package. Below I've made `Node` private to the `event` package.
-
-```scala
-package doodle.event
-
-sealed trait Observer[A] {
-  def observe(in: A): Unit 
+object Stream {
+  // etc ...
+  
+  // Stream algebraic data type
+  final case class Zip[A,B](left: Stream[A], right: Stream[B]) extends Stream[(A,B)]
+  final case class Map[A,B](source: Stream[A], f: A => B) extends Stream[B]
+  final case class FromIterator[A](source: Iterator[A]) extends Stream[A]
 }
-sealed trait EventStream[A] {
-  def map[B](f: A => B): EventStream[B]
-}
-private[event] sealed trait Node[A,B] extends Observer[A] with EventStream[B] {
-  import scala.collection.mutable
-
-  val observers: mutable.ListBuffer[Observer[B]] =
-    new mutable.ListBuffer()
-
-  def observe(in: A): Unit =
-    this match {
-      case m @ Map(f) =>
-        val output = f(in)
-        m.observers.foreach(o => o.observe(output))
-    }
-
-  def map[C](f: B => C): EventStream[C] = {
-    val node = Map(f)
-    observers += node
-    node
-  }
-}
-final case class Map[A,B](f: A => B) extends Node[A,B]
+}; import streamWrapper._
 ```
 </div>
 
-Implement `scanLeft`. Hint: you will need to introduce mutable state to store the previous output of `scanLeft` that gets fed back into `scanLeft` when the next event arrives.
+```tut:invisible
+object streamWrapper {
+sealed trait Stream[A] {
+  import Stream._
 
-<div class="solution">
-We can use the same pattern as `map` to implement `scanLeft`.
+  def zip[B](that: Stream[B]): Stream[(A,B)] =
+    Zip(this, that)
 
-```scala
-package doodle.event
+  def map[B](f: A => B): Stream[B] =
+    Map(this, f)
 
-sealed trait Observer[A] {
-  def observe(in: A): Unit 
-}
-sealed trait EventStream[A] {
-  def map[B](f: A => B): EventStream[B]
-  def scanLeft[B](seed: B)(f: (B,A) => B): EventStream[B]
-}
-private[event] sealed trait Node[A,B] extends Observer[A] with EventStream[B] {
-  import scala.collection.mutable
+  def runFold[B](zero: B)(f: (B, A) => B): B = {
+    def next[A](stream: Stream[A]): A =
+      stream match {
+        case FromIterator(source) => source.next()
+        case Map(source, f) => f(next(source))
+        case Zip(left, right) => (next(left), next(right))
+      }
 
-  val observers: mutable.ListBuffer[Observer[B]] =
-    new mutable.ListBuffer()
-
-  def observe(in: A): Unit =
-    this match {
-      case m @ Map(f) =>
-        val output = f(in)
-        m.observers.foreach(o => o.observe(output))
-      case s @ ScanLeft(seed, f) =>
-        val output = f(seed, in)
-        s.seed = output
-        s.observers.foreach(o => o.observe(output))
+    // Never terminates
+    def loop(result: B): B = {
+      loop(f(result, next(this)))
     }
 
-  def map[C](f: B => C): EventStream[C] = {
-    val node = Map(f)
-    observers += node
-    node
-  }
-
-  def scanLeft[C](seed: C)(f: (C,B) => C): EventStream[C] = {
-    val node = ScanLeft(seed, f)
-    observers += node
-    node
+    loop(zero)
   }
 }
-final case class Map[A,B](f: A => B) extends Node[A,B]
-final case class ScanLeft[A,B](var seed: B, f: (B,A) => B) extends Node[A,B]
+object Stream {
+  def fromIterator[A](source: Iterator[A]): Stream[A] =
+    FromIterator(source)
+
+  def always[A](element: A): Stream[A] =
+    FromIterator(Iterator.continually(element))
+
+  def apply[A](elements: A*): Stream[A] =
+    FromIterator(Iterator(elements: _*))
+
+  // Stream algebraic data type
+  final case class Zip[A,B](left: Stream[A], right: Stream[B]) extends Stream[(A,B)]
+  final case class Map[A,B](source: Stream[A], f: A => B) extends Stream[B]
+  final case class FromIterator[A](source: Iterator[A]) extends Stream[A]
+}
+}; import streamWrapper._
+```
+
+This code compiles but has one flaw: we never check if our `Iterator` has more data (using the `hasNext` method.)
+Try running, for example,
+
+```tut:fail:book
+Stream(1, 2, 3).runFold(0)(_ + _)
+```
+
+Why has our method created broken code?
+It's because `Iterator` is a stateful abstraction and not an algebraic data type, so the type system and our usual techniques don't work for us when using `Iterator`.
+We have to rely on testing and our memory to get it right.
+
+Let's modify `next` to return an `Option` indicating if more data is available, and add the correct check to the `FromIterator` case in `next`.
+
+<div class="solution">
+The full working code is
+
+```tut:silent:book
+object streamWrapper {
+sealed trait Stream[A] {
+  import Stream._
+
+  def zip[B](that: Stream[B]): Stream[(A,B)] =
+    Zip(this, that)
+
+  def map[B](f: A => B): Stream[B] =
+    Map(this, f)
+
+  def runFold[B](zero: B)(f: (B, A) => B): B = {
+    // Use `Option` to indicate if the stream has terminated.
+    // `None` indicates no more values are available.
+    def next[A](stream: Stream[A]): Option[A] =
+      stream match {
+        case FromIterator(source) =>
+          if(source.hasNext) Some(source.next()) else None
+        case Map(source, f) =>
+          next(source).map(f)
+        case Zip(left, right) =>
+          for {
+            l <- next(left)
+            r <- next(right)
+          } yield (l, r)
+      }
+
+    def loop(result: B): B =
+      next(this) match {
+        case None => result
+        case Some(a) =>
+          loop(f(result, a))
+      }
+
+    loop(zero)
+  }
+}
+object Stream {
+  def fromIterator[A](source: Iterator[A]): Stream[A] =
+    FromIterator(source)
+
+  def always[A](element: A): Stream[A] =
+    FromIterator(Iterator.continually(element))
+
+  def apply[A](elements: A*): Stream[A] =
+    FromIterator(Iterator(elements: _*))
+
+  // Stream algebraic data type
+  final case class Zip[A,B](left: Stream[A], right: Stream[B]) extends Stream[(A,B)]
+  final case class Map[A,B](source: Stream[A], f: A => B) extends Stream[B]
+  final case class FromIterator[A](source: Iterator[A]) extends Stream[A]
+}
+}; import streamWrapper._
 ```
 </div>
 
-### Infrastructure
 
-We still have to implement `join`, but this is trickiest part of the API. Instead of tackling it now let's work on some of the supporting infrastructure so we can get some simple animations working.
+### Adding State
 
-Our first step is to implement event sources, which form the beginning of an event processing graph. In our implementation an event source simply pushes its input unchanged to its observers. We need to do two things:
-
-- a data type to represent event sources; and
-- a utility function to convert a callback handler to an event source.
-
-A callback handler is a method that allows us to set a callback that is invoked when an event arrives. The `Canvas` trait has two callback handlers, shown below.
+Now we're going to add `scanLeft`.
+Remember the signature for `scanLeft` is
 
 ```scala
-  /** Set a callback that will be called when the canvas is ready to display to a
-    * new frame. This will generally occur at 60fps. There can only be a single
-    * callback registered at any one time and there is no way to cancel a
-    * callback once it is registered.
-    *
-    * The callback is passed a monotically increasing value representing the
-    * current time in undefined units.
-    */
-  def setAnimationFrameCallback(callback: Double => Unit): Unit
-
-  /** Set a callback when a key is pressed down. */
-  def setKeyDownCallback(callback: Key => Unit): Unit
+def scanLeft[B](seed: B)(f: (B,A) => B): Stream[B]
 ```
 
-To represent event sources we can simply reuse `Map` passing in the identity function. (Note that we could define another case in our algebraic data type. I'm avoiding doing so to skirt around a type inference problem that we will crash into later. I encourage you to attempt this alternative implementation to see the error, which we will learn how to solve when we discuss implementing `join`.)
+Implementing `scanLeft` requires we keep state between successive calls in our interpreter.
+If we reify `scanLeft` and add state we'll break substitution (try it and see!)
+One way to implement a better system is to transform `Stream` into another representation, and that representation can contain state.
+Because this internal representation is entirely hidden within `runFold` it can never be observed from outside the system and hence it's ok to use.
 
-We now need to implement our utility to construct a source from a callback handler. Make it so.
+Here's how we did it.
 
 <div class="solution">
-The task here is a bit underspecified, to leave it open to explore alternative designs. My design puts this method on the companion object of `EventStream`.
+`Stream` is defined mostly as before but now we convert it to `Observable` within `runFold`.
 
-```scala
-object EventStream {
-  def fromCallbackHandler[A](handler: (A => Unit) => Unit) = {
-    val stream = new Map[A,A](identity _)
-    handler((evt: A) => stream.observe(evt))
-    stream
+```tut:silent:book
+object streamWrapper {
+sealed trait Observable[A]{
+  def runFold[B](zero: B)(f: (B, A) => B): B = {
+    def next[A](observable: Observable[A]): Option[A] =
+      stream match {
+        case FromIterator(source) =>
+          if(source.hasNext) Some(source.next()) else None
+        case Map(source, f) =>
+          next(source).map(f)
+        case Zip(left, right) =>
+          for {
+            l <- next(left)
+            r <- next(right)
+          } yield (l, r)
+        case s @ ScanLeft(source, z, f) =>
+          s.zero = f(z, next(source))
+          s.zero
+      }
+
+    def loop(result: B): B =
+      next(this) match {
+        case None => result
+        case Some(a) =>
+          loop(f(result, a))
+      }
+
+    loop(zero)
   }
 }
-```
+object Observable {
+  def fromStream(source: Stream[A]): Observable[A] = {
+    source match {
+      case Stream.Map(source, f) => Map(fromStream(source), f)
+      case Stream.ScanLeft(source, zero, f) => ScanLeft(fromStream(source), zero, f)
+      case Stream.Zip(left, right) => Zip(fromStream(left), fromStream(right))
+      case Stream.FromIterator(handler) => Source(source)
+    }
+  
+  // Observable algebraic data type
+  final case class ScanLeft[A,B](source: Observable[A], var zero: B, f: (B,A) => B) 
+  final case class Zip[A,B](left: Observable[A], right: Observable[B]) extends Observable[(A,B)]
+  final case class Map[A,B](source: Observable[A], f: A => B) extends Observable[B]
+  final case class FromIterator[A](source: Iterator[A]) extends Observable[A]
+}
 
-We can use it like so:
+sealed trait Stream[A] {
+  import Stream._
 
-```scala
-val canvas = Java2DCanvas.canvas
-val source = EventStream.fromCallbackHandler(canvas.setAnimationFrameCallback _)
+  def zip[B](that: Stream[B]): Stream[(A,B)] =
+    Zip(this, that)
+
+  def map[B](f: A => B): Stream[B] =
+    Map(this, f)
+    
+  def scanLeft[B](zero: B)(f: (B, A) => B): Stream[B]
+
+  def runFold[B](zero: B)(f: (B,A) => B): B = {
+    Observable.fromStream(this).runFold(zero)(f)
+  }
+}
+object Stream {
+  def fromIterator[A](source: Iterator[A]): Stream[A] =
+    FromIterator(source)
+
+  def always[A](element: A): Stream[A] =
+    FromIterator(Iterator.continually(element))
+
+  def apply[A](elements: A*): Stream[A] =
+    FromIterator(Iterator(elements: _*))
+
+  // Stream algebraic data type
+  final case class Zip[A,B](left: Stream[A], right: Stream[B]) extends Stream[(A,B)]
+  final case class Map[A,B](source: Stream[A], f: A => B) extends Stream[B]
+  final case class FromIterator[A](source: Iterator[A]) extends Stream[A]
+}
+}; import streamWrapper._
 ```
 </div>
 
-With this in place you should be able to implement some simple animations.
+This solution has a lot of repetition but it's easy code to read and write, as it's still using all our familiar patterns.
 
-### Join
 
-We are now ready to tackle `join`, the trickiest part of the system. Join takes two event streams as input, and produces a tuple of the most recent events from both streams whenever *either* stream produces an event.
+### Adding Concurrency
 
-All our previous nodes have had a single input, whereas join has two. Therefore we can't use the same implementation strategy as before. We also need some mutable state, so we can record the most recent event from each stream we're observing.
+We're now going to add concurrency to our system, meaning our inputs will arrive over time.
+This entails two changes:
 
-Let first implement a class that will hold the mutable state.
+- our inputs will come from other threads so we need to worry about concurrent access; and
+- we'll implement new methods that deal with joining concurrent streams.
 
-```scala
-private [event] class MutablePair[A,B](var l: A, var r: B)
+#### Input
+
+Our input will arrive from callbacks.
+We need to add a new way to create `Streams`, passing in a callback handler with which the interpreter will register a callback.
+Concretely this means adding to the `Stream` companion object the method
+
+```tut:silent:book
+def fromCallbackHandler[A](handler: (A => Unit) => Unit): Stream[A] =
+  ???
 ```
 
-I've made the class private to the `event` package so we can hide this implementation detail to the outside.
+It's easy enough to reify this method but what should we do when the callback is called? 
+We should assume that the callback will be called from a different thread, which means we'll need to store the data somewhere till we're ready to use it.
+There is also the possibility of a race condition: we could try to read and write the data at the same time.
+To guard against this we need to use a data structure that is safe for concurrent access.
+A `java.util.concurrent.ArrayBlockingQueue` is a simple choice.
 
-Now we can implement join. Here's the start of the definition I used. See if you can implement it yourself given this start. Note that you will probably run into a compilation issue that you won't be able to solve. Read the solution for more on this.
+Our implementation is as follows:
 
-```scala
-final case class Join[A,B]() extends Node[(A,B),(A,B)]
-```
+- When an `Observable` `FromCallbackHandler` is constructured it registers a callback with the provided handler. This callback stores any value it receives into an `ArrayBlockingQueue`.
+
+- When `next` processes a `FromCallbackHandler` it `takes` value from the `ArrayBlockingQueue`.
+
+In a real system we'd want a more flexible implementation, to allow the user to specify the exact queuing semantics (e.g. how big should our queue be, and what is our behaviour on the putting side when the queue is full?)
+
+For our purposes the following implementation does the job.
 
 <div class="solution">
-The trick is to realise we'll have to connect the inputs to `Join` some other way than having `Join` implement `observe` twice for both types `A` and `B`. (This won't work---consider `A` and `B` could be the same concrete type.) Then the implementation proceeds much as before. Here's my version, which doesn't compile but does follow the patterns we've used so far.
+```tut:silent:book
+object streamWrapper {
+sealed trait Observable[A]{
+  def runFold[B](zero: B)(f: (B, A) => B): B = {
+    def next[A](observable: Observable[A]): Option[A] =
+      stream match {
+        case FromIterator(source) =>
+          if(source.hasNext) Some(source.next()) else None
+        case FromCallbackHandler(h, q) =>
+          Some(q.take()) 
+        case Map(source, f) =>
+          next(source).map(f)
+        case Zip(left, right) =>
+          for {
+            l <- next(left)
+            r <- next(right)
+          } yield (l, r)
+        case s @ ScanLeft(source, z, f) =>
+          s.zero = f(z, next(source))
+          s.zero
+      }
 
-```scala
-package doodle.event
+    def loop(result: B): B =
+      next(this) match {
+        case None => result
+        case Some(a) =>
+          loop(f(result, a))
+      }
 
-sealed trait Observer[A] {
-  def observe(in: A): Unit 
-}
-sealed trait EventStream[A] {
-  def map[B](f: A => B): EventStream[B]
-  def scanLeft[B](seed: B)(f: (B,A) => B): EventStream[B]
-}
-object EventStream {
-  def fromCallbackHandler[A](handler: (A => Unit) => Unit) = {
-    val stream = new Map[A,A](identity _)
-    handler((evt: A) => stream.observe(evt))
-    stream
+    loop(zero)
   }
 }
-private[event] sealed trait Node[A,B] extends Observer[A] with EventStream[B] {
-  import scala.collection.mutable
+object Observable {
+  import java.util.concurrent.{BlockingQueue, ArrayBlockingQueue}
 
-  val observers: mutable.ListBuffer[Observer[B]] =
-    new mutable.ListBuffer()
-
-  def observe(in: A): Unit =
-    this match {
-      case m @ Map(f) =>
-        val output = f(in)
-        m.observers.foreach(o => o.observe(output))
-      case s @ ScanLeft(seed, f) =>
-        val output = f(seed, in)
-        s.seed = output
-        s.observers.foreach(o => o.observe(output))
-      case j @ Join() =>
-        j.observers.foreach(o => o.observe(in))
+  def fromStream(source: Stream[A]): Observable[A] = {
+    source match {
+      case Stream.Map(source, f) => Map(fromStream(source), f)
+      case Stream.ScanLeft(source, zero, f) => ScanLeft(fromStream(source), zero, f)
+      case Stream.Zip(left, right) => Zip(fromStream(left), fromStream(right))
+      case Stream.FromIterator(source) => FromIterator(source)
+      case Stream.FromCallbackHandler(handler) => FromCallbackHandler(handler)
     }
-
-  def map[C](f: B => C): EventStream[C] = {
-    val node = Map(f)
-    observers += node
-    node
-  }
-
-  def scanLeft[C](seed: C)(f: (C,B) => C): EventStream[C] = {
-    val node = ScanLeft(seed, f)
-    observers += node
-    node
-  }
-
-  def join[C](that: EventStream[C]): EventStream[(B,C)] = {
-    val node = Join[B,C]()
-    this.map(b => node.updateLeft(b))
-    that.map(c => node.updateRight(c))
-    node
-  }
-}
-final case class Map[A,B](f: A => B) extends Node[A,B]
-final case class ScanLeft[A,B](var seed: B, f: (B,A) => B) extends Node[A,B]
-final case class Join[A,B]() extends Node[(A,B),(A,B)] {
-  val state: MutablePair[Option[A],Option[B]] = new MutablePair(None, None)
-
-  def updateLeft(in: A) = {
-    state.l = Some(in)
-    state.r.foreach { r => this.observe( (in,r) ) }
-  }
-
-  def updateRight(in: B) = {
-    state.r = Some(in)
-    state.l.foreach { l => this.observe( (l,in) ) }
+  
+  // Observable algebraic data type
+  final case class ScanLeft[A,B](source: Observable[A], var zero: B, f: (B,A) => B) 
+  final case class Zip[A,B](left: Observable[A], right: Observable[B]) extends Observable[(A,B)]
+  final case class Map[A,B](source: Observable[A], f: A => B) extends Observable[B]
+  final case class FromIterator[A](source: Iterator[A]) extends Observable[A]
+  final case class FromCallbackHandler[A](
+    handler: (A => Unit) => Unit,
+    queue: BlockingQueue = new ArrayBlockingQueue(1)) extends Observable[A] {
+    handler { a =>
+      queue.put(a)
+    }
   }
 }
 
-private [event] class MutablePair[A,B](var l: A, var r: B)
+sealed trait Stream[A] {
+  import Stream._
+
+  def zip[B](that: Stream[B]): Stream[(A,B)] =
+    Zip(this, that)
+
+  def map[B](f: A => B): Stream[B] =
+    Map(this, f)
+    
+  def scanLeft[B](zero: B)(f: (B, A) => B): Stream[B]
+
+  def runFold[B](zero: B)(f: (B,A) => B): B = {
+    Observable.fromStream(this).runFold(zero)(f)
+  }
+}
+object Stream {
+  def fromIterator[A](source: Iterator[A]): Stream[A] =
+    FromIterator(source)
+    
+  def fromCallbackHandler[A](handler: (A => Unit) => Unit): Stream[A] =
+    FromCallbackHandler(handler)
+
+  def always[A](element: A): Stream[A] =
+    FromIterator(Iterator.continually(element))
+
+  def apply[A](elements: A*): Stream[A] =
+    FromIterator(Iterator(elements: _*))
+
+  // Stream algebraic data type
+  final case class Zip[A,B](left: Stream[A], right: Stream[B]) extends Stream[(A,B)]
+  final case class Map[A,B](source: Stream[A], f: A => B) extends Stream[B]
+  final case class FromIterator[A](source: Iterator[A]) extends Stream[A]
+  final case class FromCallbackHandler[A](handler: (A => Unit) => Unit) extends Stream[A]
+}
+}; import streamWrapper._
 ```
+</div>
 
-This gives the mysterious compilation error
 
-```scala
-EventStream.scala:32: error: constructor cannot be instantiated to expected type;
- found   : doodle.event.Join[A(in class Join),B(in class Join)]
- required: doodle.event.Node[A(in trait Node),B(in trait Node)]
-      case j @ Join() =>
-               ^
-one error found
-```
+#### Concurrent Joins
 
-We have inadvertantly veered away from what Scala's type inference algorithm can handle. The source of the problem is the use of type variables in `Join` (specifically the `extends Node[(A,B),(A,B)]` part.) Here we are mixing type variables with a concrete type (a tuple), rather than simply passing them up to `Node` as we have done with `Map` and `ScanLeft`. This more complex construction is called a generalized algebraic datatype (GADT for short.)
-
-Scala's type inference algorithm can't work out that `A` and `B` in `Node` are equivalent to `(A,B)` when `Node` is a `Join`. The solution is to abandon pattern matching, and implement our structural recursion with polymorphism. We have a bit more duplication as a result, but our code actually compiles. This seems a reasonable trade-off.
-
-```scala
-package doodle.event
-
-sealed trait Observer[A] {
-  def observe(in: A): Unit 
-}
-sealed trait EventStream[A] {
-  def map[B](f: A => B): EventStream[B]
-  def scanLeft[B](seed: B)(f: (B,A) => B): EventStream[B]
-}
-object EventStream {
-  def fromCallbackHandler[A](handler: (A => Unit) => Unit) = {
-    val stream = new Map[A,A](identity _)
-    handler((evt: A) => stream.observe(evt))
-    stream
-  }
-}
-private[event] sealed trait Node[A,B] extends Observer[A] with EventStream[B] {
-  import scala.collection.mutable
-
-  val observers: mutable.ListBuffer[Observer[B]] =
-    new mutable.ListBuffer()
-
-  def map[C](f: B => C): EventStream[C] = {
-    val node = Map(f)
-    observers += node
-    node
-  }
-
-  def scanLeft[C](seed: C)(f: (C,B) => C): EventStream[C] = {
-    val node = ScanLeft(seed, f)
-    observers += node
-    node
-  }
-
-  def join[C](that: EventStream[C]): EventStream[(B,C)] = {
-    val node = Join[B,C]()
-    this.map(b => node.updateLeft(b))
-    that.map(c => node.updateRight(c))
-    node
-  }
-}
-final case class Map[A,B](f: A => B) extends Node[A,B] {
-  def observe(in: A): Unit = {
-    val output = f(in)
-    observers.foreach(o => o.observe(output))
-  }
-}
-final case class ScanLeft[A,B](var seed: B, f: (B,A) => B) extends Node[A,B] {
-  def observe(in: A): Unit = {
-    val output = f(seed, in)
-    seed = output
-    observers.foreach(o => o.observe(output))
-  }
-}
-final case class Join[A,B]() extends Node[(A,B),(A,B)] {
-  val state: MutablePair[Option[A],Option[B]] = new MutablePair(None, None)
-
-  def observe(in: (A,B)): Unit = {
-    observers.foreach(o => o.observe(in))
-  }
-
-  def updateLeft(in: A) = {
-    state.l = Some(in)
-    state.r.foreach { r => this.observe( (in,r) ) }
-  }
-
-  def updateRight(in: B) = {
-    state.r = Some(in)
-    state.l.foreach { l => this.observe( (l,in) ) }
-  }
-}
-
-private [event] class MutablePair[A,B](var l: A, var r: B)
-```
-</div> 
+To be continued ...

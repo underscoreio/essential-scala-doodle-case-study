@@ -1,10 +1,21 @@
 ## Background
 
-To make smooth animations we must account for the characteristics of the display. Screens typically redraw sixty times a second, so we should create new frames at the same rate. We also need to provide our frames at the point in time when the screen is ready to redraw, or we might observe [screen tearing](https://en.wikipedia.org/wiki/Screen_tearing).
+Our goal is to produce smooth animations and allow our animations to react to key presses and other events.
+Let's start by looking at the first part of our goal: producing smooth animations.
 
-The typical imperative solution is to setup a callback that is called every time a new frame is needed. The `Canvas` interface provides this facility, with a method `setAnimationFrameCallback`. We pass a function to `setAnimationFrameCallback`, and the `Canvas` calls this function every time the screen is ready for a new frame. We then call other methods on `Canvas` to actually create that frame.
+To make smooth animations we must account for the characteristics of the screen. 
+Screens typically redraw sixty times a second, so we should create new frames at the same rate. 
+We also need to produce our frames at the point in time when the screen is ready to redraw, or we might observe [screen tearing](https://en.wikipedia.org/wiki/Screen_tearing).
 
-This interface has the all problems of the imperative approach to drawing that we abandoned in the last chapter: it doesn't compose, is difficult to work with, and is difficult to reason about. What would be a better, functional, approach be?
+The typical imperative solution is to setup a callback that is called every time a new frame is needed. The `Canvas` interface provides this facility, with a method `setAnimationFrameCallback`. 
+
+```scala
+def setAnimationFrameCallback(callback: Double => Unit): Unit
+```
+
+We pass a function to `setAnimationFrameCallback`, and the `Canvas` calls this function every time the screen is ready for a new frame. We then call other methods on `Canvas` to actually create that frame.
+
+This interface has the all problems of the imperative approach to drawing that we abandoned in the last chapter: it doesn't compose, is difficult to work with, and is difficult to reason about. What would a better, functional, approach be?
 
 When we look at a what an animation is, we find it quite amenable to a functional approach. Imagine we are animating a ball moving about the screen. The current position of the ball is a function of the previous postion and the current velocity.
 
@@ -12,11 +23,11 @@ When we look at a what an animation is, we find it quite amenable to a functiona
 
 The current velocity is itself a function of the user input and the previous velocity.
 
-Let's quickly sketch out some code to make this really concrete.
+Let's see how this looks in code.
 
 We start with a type to represent user input.
 
-```scala
+```tut:silent:book
 // User input is a Key
 sealed trait Key
 final case object Up extends Key
@@ -28,7 +39,7 @@ final case object Right extends Key
 Now we can calculate velocity as a function of the velocity at the previous timestep and user input.
 
 ```scala
-// Velocity is represented as a two dimensional Vector
+// Velocity is represented as a two dimensional vector of type `Vec`
 def currentVelocity(previousVelocity: Vec, input: Key): Vec =
   input match {
     case Up => previousVelocity + Vec(0, 1)
@@ -41,7 +52,7 @@ def currentVelocity(previousVelocity: Vec, input: Key): Vec =
 Location is a function of the location at the previous time step and the velocity.
 
 ```scala
-// Location is represented as a two dimensional Vector, by abuse of notation
+// Location is represented as a two dimensional vector, by abuse of notation
 def currentLocation(previousLocation: Vec, velocity: Vec): Vec =
   previousLocation + velocity
 ```
@@ -62,16 +73,14 @@ If we ignore interactivity for now, we can actually run the code above using `Li
 
 You might not have seen the `scan` methods before. They are equivalent to fold but they collect the intermediate results in a list. Taking summing the elements of a `List` using a fold like so:
 
-```scala
+```tut:book
 List(1, 2, 3, 4).foldLeft(0){ _ + _ }
-// res: Int = 10
 ```
 
 If we replace `foldLeft` with `scanLeft` we get a list of the partial sums.
 
-```scala
+```tut:book
 List(1, 2, 3, 4).scanLeft(0){ _ + _ }
-// res: List[Int] = List(0, 1, 3, 6, 10)
 ```
 
 We can apply this to our `Image` example to get a list of intermediate image frames.
@@ -91,5 +100,9 @@ This system is fine for rendering animations from prerecorded input, but how wha
 
 We can think of a list as representing data in space. Different list indices correspond to different locations in the computer's memory. What we want is an abstraction that represents data *in time*. Indexing in this event stream corresponds to accessing events at different times. (We won't actually implement indexing as it would allow time travel, but it provides a useful conceptual model.)
 
-The next leap is to realise that it's the interface allowing transformation (`map`, `scanLeft`, and so on) that is important, not the list-like nature. We don't want to actually store all the past inputs like we would in a list, for example. We can imagine our transformations as edges in a directed acyclic graph. User input flows into the graph and `Images` flow out.
-
+The next leap is to realise that it's the interface allowing transformation (`map`, `scanLeft`, and so on) that is important, not the list-like nature. We don't want to actually store all the past inputs in memory like we would in a list. 
+We can make an analogy to an assembly line.
+The raw materials flowing onto the assembly line are the user input.
+Our transformations are stages of the assemblly line, turning input into output.
+Our assembly line can branch or merge as needed.
+The final destination of our assembly line is the screen and our final output should be `Images`.

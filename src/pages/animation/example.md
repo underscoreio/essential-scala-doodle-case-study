@@ -1,6 +1,6 @@
 ## A Small Example
 
-To make this concrete let's experiment with a version of the system we'll be building. You can find this system on the `feature/event` branch. We're going to use it to make a little ball move around the screen in response to key presses.
+Let's experiment with a version of the system we'll be building. You can find this system on the `feature/event` branch. We're going to use it to make a little ball move around the screen in response to key presses.
 
 We start by converting the `Canvas` callbacks for animation frames and key presses into event streams.
 
@@ -10,11 +10,11 @@ import doodle.core._
 import doodle.event._
 import doodle.jvm.Java2DCanvas
 
-val redraw = Canvas.animationFrameEventStream(canvas)
-val keys = Canvas.keyDownEventStream(canvas)
+val redraw = Canvas.animationFrameStream(canvas)
+val keys = Canvas.keyDownStream(canvas)
 ```
 
-Now we're going to convert key presses into velocity. Velocity in a vector starting at (0, 0), and we'll increment or decrement it by one as appropriate on each key press. Additionally we going to limit the x and y components of velocity to be in the range -5 to 5. This stops the ball flying around the screen to quickly. 
+Now we're going to convert key presses into velocity. Velocity in a vector starting at (0, 0), and we'll increment or decrement it by one as appropriate on each key press. Additionally we going to limit the x and y components of velocity to be in the range -5 to 5. This stops the ball flying around the screen too quickly. 
 
 ```scala
 val velocity = keys.scanLeft(Vec.zero)((key, prev) => {
