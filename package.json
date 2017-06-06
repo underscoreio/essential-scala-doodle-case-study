@@ -1,6 +1,6 @@
 {
   "name": "essesntial-scala-doodle-case-study",
-  "description": "Extended Case Study for Essential Scala"
+  "description": "Extended Case Study for Essential Scala",
   "version": "1.0.0",
   "devDependencies": {
     "bootstrap": "3.3.1",
