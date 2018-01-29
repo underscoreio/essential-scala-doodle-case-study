@@ -249,7 +249,7 @@ final case class Beside(left: Image, right: Image) extends Image
 ```
 </div>
 
-Now we have enough information to do layout. Our `Image` is a tree. The top level boudning box tells us how big the entire image is. We can decide the origin of this bounding box is the origin of the global canvas coordinate system. Then we can walk down the tree (yet more structural recursion) translating the local coordinate system into the global system. When we reach a leaf node (so, a primite image), we can actually draw it. We already have the skeleton for this in `draw`---we just need to pass along the mapping from the local coordinate system to the global one. We can use a method like
+Now we have enough information to do layout. Our `Image` is a tree. The top level bounding box tells us how big the entire image is. We can decide the origin of this bounding box is the origin of the global canvas coordinate system. Then we can walk down the tree (yet more structural recursion) translating the local coordinate system into the global system. When we reach a leaf node (so, a primite image), we can actually draw it. We already have the skeleton for this in `draw`---we just need to pass along the mapping from the local coordinate system to the global one. We can use a method like
 
 ```scala
 def draw(canvas: Canvas, originX: Double, originY: Double): Unit =
